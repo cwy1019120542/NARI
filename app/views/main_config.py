@@ -1,10 +1,11 @@
 import os
 import json
 import time
+import zipfile
 import smtplib
 from flask import Blueprint, request, current_app
-from ..func_tools import is_login, response,file_resource, config_resource, get_run_config, create_task_id, resource_limit, parameter_check, return_file, get_file_path, send_multi_mail
-from ..models import User, MainConfig, SendConfig, ReceiveConfig
+from ..func_tools import is_login, response,file_resource, config_resource, get_run_config, create_task_id, resource_limit, parameter_check, return_file, get_file_path, send_multi_mail, return_zip
+from ..models import User, MainConfig, SendConfig, ReceiveConfig, SendHistory, ReceiveHistory
 from ..api_config import main_config_parameter, remind_parameter
 from ..extention import db, redis, celery
 from ..tasks.send_mail import send_mail
@@ -203,3 +204,44 @@ def active(user_id):
         "scheduled_task": scheduled_task_id_list
     })
 
+@main_config_blueprint.route('/<int:main_config_id>/log', methods=['GET'])
+@is_login
+def task_log(user_id, main_config_id):
+    is_success, return_data = resource_limit(MainConfig, main_config_id, user_id)
+    if not is_success:
+        return return_data
+    send_key = f"{main_config_id}_send_log"
+    receive_key = f"{main_config_id}_receive_log"
+    send_log = [i.decode() for i in redis.lrange(send_key, 0, -1)] if redis.exists(send_key) else []
+    receive_log = [i.decode() for i in redis.lrange(receive_key, 0, -1)] if redis.exists(receive_key) else []
+    return response(True, 200, "成功", {
+        "send_log": send_log,
+        "receive_log": receive_log
+    })
+
+@main_config_blueprint.route('/<int:main_config_id>/history', methods=['GET'])
+@is_login
+def history(user_id, main_config_id):
+    is_success, return_data = resource_limit(MainConfig, main_config_id, user_id)
+    if not is_success:
+        return return_data
+    send_history_list = [i.get_info() for i in db.session.query(SendHistory).filter_by(main_config_id=main_config_id).all()]
+    receive_history_list = [i.get_info() for i in db.session.query(ReceiveHistory).filter_by(main_config_id=main_config_id).all()]
+    return response(True, 200, "成功", {
+        "send_history": send_history_list,
+        "receive_history": receive_history_list
+    })
+
+@main_config_blueprint.route('/<int:main_config_id>/split_excel', methods=['GET'])
+@is_login
+def split_file(user_id, main_config_id):
+    zip_path = os.path.join(current_app.config['CONFIG_FILES_DIR'], str(main_config_id), f'拆分表格.zip')
+    split_file_dir = os.path.join(current_app.config['CONFIG_FILES_DIR'], str(main_config_id), "split_excel")
+    return return_zip(main_config_id, user_id, zip_path, split_file_dir)
+
+@main_config_blueprint.route('/<int:main_config_id>/receive_excel', methods=['GET'])
+@is_login
+def receive_excel(user_id, main_config_id):
+    zip_path = os.path.join(current_app.config['CONFIG_FILES_DIR'], str(main_config_id), f'收取表格.zip')
+    receive_file_dir = os.path.join(current_app.config['CONFIG_FILES_DIR'], str(main_config_id), "receive_excel")
+    return return_zip(main_config_id, user_id, zip_path, receive_file_dir)

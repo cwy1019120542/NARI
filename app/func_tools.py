@@ -2,6 +2,7 @@ import os
 import time
 import uuid
 import smtplib
+import zipfile
 import openpyxl
 from urllib.parse import quote
 from email.mime.multipart import MIMEMultipart
@@ -391,7 +392,20 @@ def get_task_info(task_id):
     elif status == 'REVOKED':
         return True, "终止"
 
-
+def return_zip(main_config_id, user_id, zip_path, file_dir):
+    is_success, return_data = resource_limit(MainConfig, main_config_id, user_id)
+    if not is_success:
+        return return_data
+    if not os.path.exists(file_dir) or not os.listdir(file_dir):
+        return response(False, 404, file_dir)
+    if os.path.exists(zip_path):
+        os.remove(zip_path)
+    zip_file = zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED)
+    for file_name in os.listdir(file_dir):
+        file_path = os.path.join(file_dir, file_name)
+        zip_file.write(file_path, file_name)
+    zip_file.close()
+    return return_file(zip_path)
 
 
 

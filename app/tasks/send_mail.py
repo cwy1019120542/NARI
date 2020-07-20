@@ -5,8 +5,8 @@ import smtplib
 import openpyxl
 import time
 from traceback import print_exc
-from ..models import MainConfig
-from ..extention import celery, Session, send_logger
+from ..models import MainConfig, SendHistory
+from ..extention import celery, Session, send_logger, redis
 from ..func_tools import response, get_file_path, get_match_dict, check_dir, smtp_send_mail, get_header_row
 
 def clean_file_name(file_name):
@@ -14,16 +14,20 @@ def clean_file_name(file_name):
     new_file_name = re.sub(sub_list, '_', str(file_name))
     return new_file_name
 
+def generate_log(main_config_id, level, message):
+    getattr(send_logger, level)(message)
+    redis.rpush(f"{main_config_id}_send_log", message)
 
 @celery.task(track_started=True)
 def send_mail(config, main_config_info, send_config_info):
     try:
         main_config_id = main_config_info['id']
-        send_logger.info(f"main_config_id {main_config_id} 发邮件任务开始")
+        redis.delete(f"{main_config_id}_send_log")
+        generate_log(main_config_id, "info", f"main_config_id {main_config_id} 发邮件任务开始")
         config_files_dir = config['CONFIG_FILES_DIR']
         is_success, return_data = get_match_dict(config_files_dir, main_config_id)
         if not is_success:
-            send_logger.critical(f"main_config_id {main_config_id} 缺失邮箱对应表")
+            generate_log(main_config_id, "critical", f"main_config_id {main_config_id} 缺失邮箱对应表")
             return "运行失败,缺失邮箱对应表"
         match_dict = return_data
         total_target_list = list(match_dict.keys())
@@ -37,7 +41,7 @@ def send_mail(config, main_config_info, send_config_info):
         port = send_config_info['port']
         is_success, return_data = get_file_path(config_files_dir, main_config_id, "send_excel")
         if not is_success:
-            send_logger.critical(f"main_config_id {main_config_id} 未上传要发送的邮件")
+            generate_log(main_config_id, "critical", f"main_config_id {main_config_id} 未上传要发送的邮件")
             return "运行失败,未上传要发送的邮件"
         send_excel_path = return_data
         send_excel_name = os.path.splitext(os.path.split(send_excel_path)[1])[0]
@@ -47,7 +51,7 @@ def send_mail(config, main_config_info, send_config_info):
         os.makedirs(split_dir)
         empty_template_path = os.path.join(split_dir, "empty_template.xlsx")
         shutil.copy(send_excel_path, empty_template_path)
-        send_logger.info(f"main_config_id {main_config_id} 开始生成空模板")
+        generate_log(main_config_id, "info", f"main_config_id {main_config_id} 开始生成空模板")
         empty_excel = openpyxl.open(empty_template_path)
         empty_excel_sheet_name_list = empty_excel.sheetnames
         for empty_excel_sheet_name in empty_excel_sheet_name_list:
@@ -57,12 +61,12 @@ def send_mail(config, main_config_info, send_config_info):
             empty_sheet = empty_excel[sheet_name]
             header_row = get_header_row(empty_sheet, field_row)
             max_row = int(empty_sheet.max_row)
-            send_logger.info(f"main_config_id {main_config_id} sheet_name {sheet_name} max_row {max_row}")
+            generate_log(main_config_id, "info", f"main_config_id {main_config_id} sheet_name {sheet_name} max_row {max_row}")
             if is_split:
                 empty_sheet.delete_rows(header_row+1, max_row+1)
         empty_excel.save(empty_template_path)
         empty_excel.close()
-        send_logger.info(f"main_config_id {main_config_id} 空模板表生成完毕")
+        generate_log(main_config_id, "info", f"main_config_id {main_config_id} 空模板表生成完毕")
         send_excel = openpyxl.load_workbook(send_excel_path, data_only=True)
         result_dict = {}
         target_list = []
@@ -86,7 +90,7 @@ def send_mail(config, main_config_info, send_config_info):
             result_dict[target] = {}
             for sheet_name in sheet_list:
                 result_dict[target][sheet_name] = None
-        send_logger.info(f"main_config_id {main_config_id} 数据模板生成完毕")
+        generate_log(main_config_id, "info", f"main_config_id {main_config_id} 数据模板生成完毕")
         sheet_split_dict = dict(zip(sheet_list, is_split_list))
         for sheet_name, field_row, is_split in zip(sheet_list, field_row_list, is_split_list):
             send_sheet = send_excel[sheet_name]
@@ -109,10 +113,10 @@ def send_mail(config, main_config_info, send_config_info):
                 for target in target_list:
                     result_dict[target][sheet_name] = []
         send_excel.close()
-        send_logger.info(f"main_config_id {main_config_id} 数据生成完毕")
+        generate_log(main_config_id, "info", f"main_config_id {main_config_id} 数据生成完毕")
         for key, value in result_dict.items():
             if key not in total_target_list:
-                send_logger.error(f"main_config_id {main_config_id} {key} 未配置邮箱")
+                generate_log(main_config_id, "error", f"main_config_id {main_config_id} {key} 未配置邮箱")
                 continue
             single_excel_path = os.path.join(split_dir, f'{clean_file_name(key)}_{send_excel_name}_.xlsx')
             shutil.copy(empty_template_path, single_excel_path)
@@ -129,16 +133,17 @@ def send_mail(config, main_config_info, send_config_info):
                     work_sheet.append(row_value)
             work_book.save(single_excel_path)
             work_book.close()
-            send_logger.info(f"main_config_id {main_config_id} {key} 表生成完毕")
+            generate_log(main_config_id, "info", f"main_config_id {main_config_id} {key} 表生成完毕")
+        os.remove(empty_template_path)
         sender = main_config_info['email']
         password = main_config_info['password']
         try:
             smtp_obj = smtplib.SMTP(ip, port)
             smtp_obj.login(sender, password)
         except Exception as error:
-            send_logger.critical(f"main_config_id {main_config_id} 无法登陆发件邮箱 {error}")
+            generate_log(main_config_id, "critical", f"main_config_id {main_config_id} 无法登陆发件邮箱 {error}")
             return "运行失败,无法登陆发件邮箱"
-        send_number = 0
+        history_list = []
         for key in result_dict:
             if key in match_dict:
                 email_list = match_dict[key]
@@ -147,24 +152,21 @@ def send_mail(config, main_config_info, send_config_info):
                     try:
                         smtp_send_mail(smtp_obj, sender, email, subject, content, [split_path])
                     except Exception as error:
-                        send_logger.error(f"main_config_id {main_config_id} {email} 发送失败 {error}")
+                        history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email, timestamp=time.time(), status=False, message=error))
+                        generate_log(main_config_id, "error", f"main_config_id {main_config_id} {email} 发送失败 {error}")
                         continue
                     else:
-                        send_number += 1
-                        send_logger.info(f"main_config_id {main_config_id} {email} 发送成功")
+                        history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email, timestamp=time.time(), status=True, message="success"))
+                        generate_log(main_config_id, "info", f"main_config_id {main_config_id} {email} 发送成功")
         smtp_obj.quit()
         session = Session()
-        update_dict = {
-            "run_timestamp": time.time(),
-            "send_number": send_number
-        }
-        session.query(MainConfig).filter_by(id=main_config_id).update(update_dict)
+        session.add_all(history_list)
         session.commit()
         session.close()
-        send_logger.info(f"main_config_id {main_config_id}  运行成功")
+        generate_log(main_config_id, "info", f"main_config_id {main_config_id}  运行成功")
         return "运行成功"
     except Exception as error:
-        send_logger.critical(f"main_config_id {main_config_id} 运行失败 {print_exc()}")
+        generate_log(main_config_id, "critical", f"main_config_id {main_config_id} 运行失败 {print_exc()}")
         return "运行失败,未知错误"
 
 

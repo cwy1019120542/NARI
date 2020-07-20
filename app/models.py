@@ -5,7 +5,7 @@ from .extention import db, redis
 class User(db.Model):
     __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(30))
+    email = db.Column(db.String(50))
     password = db.Column(db.String(100))
     name =  db.Column(db.String(10))
     department =  db.Column(db.String(10))
@@ -33,11 +33,7 @@ class MainConfig(db.Model):
     email = db.Column(db.String(50))
     password = db.Column(db.String(100))
     status = db.Column(db.Integer, default=1)
-    no_response = db.Column(db.Text)
-    no_attachment = db.Column(db.Text)
     run_timestamp = db.Column(db.Integer)
-    send_number = db.Column(db.Integer)
-    receive_number = db.Column(db.Integer)
 
     def get_info(self):
         from .func_tools import get_task_info
@@ -45,8 +41,8 @@ class MainConfig(db.Model):
         receive_task_id = redis.get(f'main_config_{self.id}_receive')
         send_task_info = get_task_info(send_task_id)
         receive_task_info = get_task_info(receive_task_id)
-        send_config_info = db.session.query(SendConfig).get(self.send_config_id).get_info() if self.send_config_id else {}
-        receive_config_info = db.session.query(ReceiveConfig).get(self.receive_config_id).get_info() if self.receive_config_id else {}
+        send_config_info = db.session.query(SendConfig).get(self.send_config_id).get_info(self.id) if self.send_config_id else {}
+        receive_config_info = db.session.query(ReceiveConfig).get(self.receive_config_id).get_info(self.id) if self.receive_config_id else {}
         config_files_dir = current_app.config['CONFIG_FILES_DIR']
         from .func_tools import get_file_name
         match_excel = get_file_name(config_files_dir, self.id, 'match_excel')
@@ -62,11 +58,7 @@ class MainConfig(db.Model):
             "email": self.email,
             "password": self.password,
             "status": self.status,
-            "no_response": self.no_response,
-            "no_attachment": self.no_attachment,
             "run_timestamp": self.run_timestamp,
-            "send_number": self.send_number,
-            "receive_number": self.receive_number,
             "send_task_info": send_task_info,
             "receive_task_info": receive_task_info,
             "match_excel": match_excel
@@ -91,7 +83,10 @@ class SendConfig(db.Model):
     agreement = db.Column(db.String(10))
     status = db.Column(db.Integer, default=1)
 
-    def get_info(self):
+    def get_info(self, main_config_id):
+        config_files_dir = current_app.config['CONFIG_FILES_DIR']
+        from .func_tools import get_file_name
+        send_excel = get_file_name(config_files_dir, main_config_id, 'send_excel')
         return {
                 "id": self.id,
                 "subject": self.subject,
@@ -107,7 +102,8 @@ class SendConfig(db.Model):
                 "ip": self.ip,
                 "port": self.port,
                 "agreement": self.agreement,
-                "status": self.status
+                "status": self.status,
+                "send_excel": send_excel
             }
 
 class ReceiveConfig(db.Model):
@@ -133,7 +129,10 @@ class ReceiveConfig(db.Model):
     read_end_timestamp = db.Column(db.Integer)
     status = db.Column(db.Integer, default=1)
 
-    def get_info(self):
+    def get_info(self, main_config_id):
+        config_files_dir = current_app.config['CONFIG_FILES_DIR']
+        from .func_tools import get_file_name
+        template_excel = get_file_name(config_files_dir, main_config_id, 'template_excel')
         return {
                 "id": self.id,
                 "user_id": self.user_id,
@@ -154,7 +153,8 @@ class ReceiveConfig(db.Model):
                 "agreement": self.agreement,
                 "read_start_timestamp": self.read_start_timestamp,
                 "read_end_timestamp": self.read_end_timestamp,
-                "status": self.status
+                "status": self.status,
+                "template_excel": template_excel
             }
 
 class UpdateMessage(db.Model):
@@ -173,3 +173,44 @@ class UpdateMessage(db.Model):
             "status": self.status
         }
 
+class SendHistory(db.Model):
+    __tablename__ = 'send_history'
+    id = db.Column(db.Integer, primary_key=True)
+    target = db.Column(db.String(50))
+    email = db.Column(db.String(50))
+    main_config_id = db.Column(db.Integer)
+    timestamp = db.Column(db.Integer)
+    status = db.Column(db.Boolean)
+    message = db.Column(db.String(50))
+
+    def get_info(self):
+        return {
+            "id": self.id,
+            "target": self.target,
+            "email": self.email,
+            "main_config_id": self.main_config_id,
+            "timestamp": self.timestamp,
+            "status": self.status,
+            "message": self.message
+        }
+
+class ReceiveHistory(db.Model):
+    __tablename__ = 'receive_history'
+    id = db.Column(db.Integer, primary_key=True)
+    target = db.Column(db.String(50))
+    email = db.Column(db.String(50))
+    main_config_id = db.Column(db.Integer)
+    timestamp = db.Column(db.Integer)
+    status = db.Column(db.Boolean)
+    message = db.Column(db.String(50))
+
+    def get_info(self):
+        return {
+            "id": self.id,
+            "target": self.target,
+            "email": self.email,
+            "main_config_id": self.main_config_id,
+            "timestamp": self.timestamp,
+            "status": self.status,
+            "message": self.message
+        }
