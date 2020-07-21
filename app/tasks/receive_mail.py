@@ -92,7 +92,10 @@ def receive_mail(config, main_config, receive_config):
         new_match_dict = {}
         for key, value in match_dict.items():
             for from_email in value:
-                new_match_dict[from_email] = key
+                if from_email in new_match_dict:
+                    new_match_dict[from_email].append(key)
+                else:
+                    new_match_dict[from_email] = [key]
         target_subject = receive_config['subject']
         sheet_info = receive_config['sheet_info']
         read_start_timestamp = receive_config['read_start_timestamp']
@@ -138,16 +141,24 @@ def receive_mail(config, main_config, receive_config):
             subject_group = decode_header(msg['subject'])
             subject = decode_group(subject_group)
             msg_timestamp = getTimeStamp(msg['date'])
+            if not msg_timestamp:
+                generate_log(main_config_id, "error", f"{from_email} {subject} {msg['date']} 时间无法解析")
+                continue
             if msg_timestamp < read_start_timestamp:
                 generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {subject} {msg_timestamp} 小于开始时间")
                 break
             if msg_timestamp > read_end_timestamp:
                 generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {subject} {msg_timestamp} 大于结束时间")
                 continue
-            if from_email not in new_match_dict or new_match_dict[from_email] not in target_list:
-                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} is not useful or {new_match_dict.get(from_email)} was handled")
+            if from_email not in new_match_dict:
+                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} is not useful")
                 continue
-            target = new_match_dict[from_email]
+            target_group = new_match_dict[from_email]
+            target_group_str = "|".join(target_group)
+            check_list = [i for i in target_group if i not in target_list]
+            if check_list:
+                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {new_match_dict.get(from_email)} was handled")
+                continue
             generate_log(main_config_id, "info", f"main_config_id {main_config_id} useful {from_email} {subject} {msg_timestamp}")
             if target_subject in subject:
                 for part in msg.walk():
@@ -160,16 +171,19 @@ def receive_mail(config, main_config, receive_config):
                             filename = decode_str(str(filename, dh[0][1]))
                             generate_log(main_config_id, "info", f"main_config_id {main_config_id} filename {filename}")
                             data = part.get_payload(decode=True)
-                            file_path = os.path.join(file_dir, f'{target}_{filename}')
+                            file_path = os.path.join(file_dir, f'{target_group_str}_{filename}')
                             with open(file_path, 'wb') as f:
                                 f.write(data)
-                            target_list.remove(target)
-                            if target in no_attachment_target_list:
-                                no_attachment_target_list.remove(target)
-                            history_list.append(ReceiveHistory(email=from_email, target=target, timestamp=time.time(), main_config_id=main_config_id, status=True, message="success"))
+                            for target in target_group:
+                                if target in target_list:
+                                    target_list.remove(target)
+                                if target in no_attachment_target_list:
+                                    no_attachment_target_list.remove(target)
+                            history_list.append(ReceiveHistory(email=from_email, target=target_group_str, timestamp=time.time(), main_config_id=main_config_id, status=True, message="success"))
                     else:
-                        if target in target_list:
-                            no_attachment_target_list.add(target)
+                        for target in target_group:
+                            if target in target_list:
+                                no_attachment_target_list.add(target)
         pop_obj.quit()
         for no_attachment_target in no_attachment_target_list:
             email_group = '|'.join(match_dict[no_attachment_target])
@@ -278,7 +292,7 @@ def receive_mail(config, main_config, receive_config):
                         fill_field_list = fill_field.split('|')
                         merge_fill_dict = {}
                         for receive_excel_path in receive_excel_path_list:
-                            generate_log(main_config_id, "info", f"main_config_id {main_config_id} 聚合 {receive_excel_path}")
+                            generate_log(main_config_id, "info", f"main_config_id {main_config_id} 聚合 {os.path.split(receive_excel_path)[1]}")
                             receive_excel = openpyxl.load_workbook(receive_excel_path, data_only=True)
                             receive_excel_sheet_name_list = receive_excel.sheetnames
                             if len(sheet_info) == 1:

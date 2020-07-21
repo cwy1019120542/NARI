@@ -57,7 +57,7 @@ def parameter_check(request_data, parameter_group_list, is_all=True):
 
 def is_login(func):
     @wraps(func)
-    def wrapper(user_id, *args, **kwargs):
+    def wrapper(user_id=None, *args, **kwargs):
         if user_id != None and session.get('user_id') != user_id:
             return response(False, 403, f"用户{user_id}未登录")
         return func(user_id, *args, **kwargs)

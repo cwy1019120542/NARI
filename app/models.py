@@ -83,10 +83,10 @@ class SendConfig(db.Model):
     agreement = db.Column(db.String(10))
     status = db.Column(db.Integer, default=1)
 
-    def get_info(self, main_config_id):
+    def get_info(self, main_config_id=None):
         config_files_dir = current_app.config['CONFIG_FILES_DIR']
         from .func_tools import get_file_name
-        send_excel = get_file_name(config_files_dir, main_config_id, 'send_excel')
+        send_excel = get_file_name(config_files_dir, main_config_id, 'send_excel') if main_config_id else None
         return {
                 "id": self.id,
                 "subject": self.subject,
@@ -129,10 +129,10 @@ class ReceiveConfig(db.Model):
     read_end_timestamp = db.Column(db.Integer)
     status = db.Column(db.Integer, default=1)
 
-    def get_info(self, main_config_id):
+    def get_info(self, main_config_id=None):
         config_files_dir = current_app.config['CONFIG_FILES_DIR']
         from .func_tools import get_file_name
-        template_excel = get_file_name(config_files_dir, main_config_id, 'template_excel')
+        template_excel = get_file_name(config_files_dir, main_config_id, 'template_excel') if main_config_id else None
         return {
                 "id": self.id,
                 "user_id": self.user_id,
