@@ -1,7 +1,7 @@
 from flask import Blueprint, request
 from ..func_tools import is_login, config_resource
 from ..models import SendConfig
-from ..api_config import send_config_parameter
+from ..parameter_config import send_config_parameter
 
 send_config_blueprint = Blueprint('send_config', __name__)
 

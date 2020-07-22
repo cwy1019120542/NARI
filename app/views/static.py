@@ -3,7 +3,7 @@ from urllib.parse import quote
 from flask import Blueprint, current_app, send_from_directory, make_response, request
 from ..func_tools import return_file, db, response, config_resource
 from ..models import UpdateMessage
-from ..api_config import update_message_premeter
+from ..parameter_config import update_message_premeter
 
 static_blueprint = Blueprint('static', __name__)
 

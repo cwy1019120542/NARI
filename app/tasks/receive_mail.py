@@ -105,7 +105,6 @@ def receive_mail(config, main_config, receive_config):
         remind_content = receive_config['remind_content']
         remind_ip = receive_config['remind_ip']
         remind_port = receive_config['remind_port']
-        remind_agreement = receive_config['remind_agreement']
         generate_log(main_config_id, "info", f"main_config_id {main_config_id} 开始收邮件")
         try:
             pop_obj = poplib.POP3(host)
@@ -151,16 +150,16 @@ def receive_mail(config, main_config, receive_config):
                 generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {subject} {msg_timestamp} 大于结束时间")
                 continue
             if from_email not in new_match_dict:
-                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} is not useful")
+                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} 不在配置内的邮箱")
                 continue
             target_group = new_match_dict[from_email]
             target_group_str = "|".join(target_group)
             check_list = [i for i in target_group if i not in target_list]
             if check_list:
-                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {new_match_dict.get(from_email)} was handled")
+                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {new_match_dict.get(from_email)} 重复处理")
                 continue
-            generate_log(main_config_id, "info", f"main_config_id {main_config_id} useful {from_email} {subject} {msg_timestamp}")
             if target_subject in subject:
+                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {subject} {msg_timestamp} 主题符合")
                 for part in msg.walk():
                     file_name = part.get_filename()
                     if file_name:
@@ -169,7 +168,11 @@ def receive_mail(config, main_config, receive_config):
                         filename = dh[0][0]
                         if dh[0][1]:
                             filename = decode_str(str(filename, dh[0][1]))
-                            generate_log(main_config_id, "info", f"main_config_id {main_config_id} filename {filename}")
+                            if not filename.endswith('.xlsx'):
+                                generate_log(main_config_id, "error", f"main_config_id {main_config_id} filename {filename} 格式不合法")
+                                history_list.append(ReceiveHistory(email=from_email, target=target_group_str, create_timestamp=time.time(), main_config_id=main_config_id, is_success=False, message="附件格式不合法"))
+                                continue
+                            generate_log(main_config_id, "info", f"main_config_id {main_config_id} filename {filename} 符合条件")
                             data = part.get_payload(decode=True)
                             file_path = os.path.join(file_dir, f'{target_group_str}_{filename}')
                             with open(file_path, 'wb') as f:
@@ -179,19 +182,21 @@ def receive_mail(config, main_config, receive_config):
                                     target_list.remove(target)
                                 if target in no_attachment_target_list:
                                     no_attachment_target_list.remove(target)
-                            history_list.append(ReceiveHistory(email=from_email, target=target_group_str, timestamp=time.time(), main_config_id=main_config_id, status=True, message="success"))
+                            history_list.append(ReceiveHistory(email=from_email, target=target_group_str, create_timestamp=time.time(), main_config_id=main_config_id, is_success=True, message="success"))
                     else:
                         for target in target_group:
                             if target in target_list:
                                 no_attachment_target_list.add(target)
+            else:
+                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {subject} {msg_timestamp} 主题不符合")
         pop_obj.quit()
         for no_attachment_target in no_attachment_target_list:
             email_group = '|'.join(match_dict[no_attachment_target])
-            history_list.append(ReceiveHistory(email=email_group, target=no_attachment_target, timestamp=time.time(), main_config_id=main_config_id, status=False, message="缺失附件"))
+            history_list.append(ReceiveHistory(email=email_group, target=no_attachment_target, create_timestamp=time.time(), main_config_id=main_config_id, is_success=False, message="缺失附件"))
         for target in target_list:
             if target not in no_attachment_target_list:
                 email_group = '|'.join(match_dict[target])
-                history_list.append(ReceiveHistory(email=email_group, target=target, timestamp=time.time(), main_config_id=main_config_id, status=False, message="未回复"))
+                history_list.append(ReceiveHistory(email=email_group, target=target, create_timestamp=time.time(), main_config_id=main_config_id, is_success=False, message="未回复"))
         generate_log(main_config_id, "info", f"main_config_id {main_config_id} 邮件收取完毕 no_attachment_list {no_attachment_list} no_response_list {no_response_list}")
         if is_remind:
             remind_target_list = []
@@ -320,6 +325,7 @@ def receive_mail(config, main_config, receive_config):
                         generate_log(main_config_id, "info", f"main_config_id {main_config_id} 模板表无数据")
                         all_sheet_data = []
                         for receive_excel_path in receive_excel_path_list:
+                            generate_log(main_config_id, "info", f"main_config_id {main_config_id} 聚合 {os.path.split(receive_excel_path)[1]}")
                             receive_excel = openpyxl.load_workbook(receive_excel_path, data_only=True)
                             receive_excel_sheet_name_list = receive_excel.sheetnames
                             if len(sheet_info) == 1:

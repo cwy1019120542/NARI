@@ -6,7 +6,7 @@ import smtplib
 from flask import Blueprint, request, current_app
 from ..func_tools import is_login, response,file_resource, config_resource, get_run_config, create_task_id, resource_limit, parameter_check, return_file, get_file_path, send_multi_mail, return_zip
 from ..models import User, MainConfig, SendConfig, ReceiveConfig, SendHistory, ReceiveHistory
-from ..api_config import main_config_parameter, remind_parameter
+from ..parameter_config import main_config_parameter, remind_parameter, send_history_parameter, receive_history_parameter
 from ..extention import db, redis, celery
 from ..tasks.send_mail import send_mail
 from ..tasks.receive_mail import receive_mail
@@ -20,8 +20,8 @@ def main_config(user_id, main_config_id=None):
     request_args = request.args
     request_json = request.json
     request_method = request.method
-    if request_json:
-        is_right, clean_data = parameter_check(request_json, [('send_config_id', int, True), ('receive_config_id', int, True)], False)
+    if request_method in ["POST", "PUT"]:
+        is_right, clean_data = parameter_check(request_json, [('send_config_id', int, True, 11), ('receive_config_id', int, True, 11)], False)
         if not is_right:
             return clean_data
         send_config_id = clean_data.get('send_config_id')
@@ -154,7 +154,7 @@ def result_excel(user_id, main_config_id):
 @is_login
 def remind(user_id, main_config_id):
     request_json = request.json
-    is_success, return_data = parameter_check(request_json, remind_parameter)
+    is_success, return_data = parameter_check(request_json, remind_parameter["POST"])
     if not is_success:
         return return_data
     clean_data = return_data
@@ -176,23 +176,10 @@ def remind(user_id, main_config_id):
         remind_content = receive_config.remind_content
         remind_ip = receive_config.remind_ip
         remind_port = receive_config.remind_port
-        remind_agreement = receive_config.remind_agreement
-        is_all = clean_data["is_all"]
-        email_list = []
-        if is_all:
-            no_response_list = json.loads(main_config.no_response)
-            no_attachment_list = json.loads(main_config.no_attachment)
-            target_list = []
-            target_list.extend(no_response_list)
-            target_list.extend(no_attachment_list)
-            for target_group in target_list:
-                email_list.extend(target_group[1].split('|'))
-        else:
-            email = clean_data["email"].split('|')
-            email_list.extend(email)
+        email_list = clean_data["email"].split('|')
         is_success, return_data = send_multi_mail(remind_ip, remind_port, username, password, email_list, remind_subject, remind_content)
         if not is_success:
-            return response(True, 200, return_data)
+            return response(False, 400, return_data)
         return response(True, 200, "成功")
 
 @main_config_blueprint.route('/active', methods=["get"])
@@ -219,18 +206,25 @@ def task_log(user_id, main_config_id):
         "receive_log": receive_log
     })
 
-@main_config_blueprint.route('/<int:main_config_id>/history', methods=['GET'])
+@main_config_blueprint.route('/<int:main_config_id>/send_history', methods=['GET'])
+@main_config_blueprint.route('/<int:main_config_id>/send_history/<int:history_id>', methods=['GET', 'DELETE'])
 @is_login
-def history(user_id, main_config_id):
-    is_success, return_data = resource_limit(MainConfig, main_config_id, user_id)
-    if not is_success:
-        return return_data
-    send_history_list = [i.get_info() for i in db.session.query(SendHistory).filter_by(main_config_id=main_config_id).all()]
-    receive_history_list = [i.get_info() for i in db.session.query(ReceiveHistory).filter_by(main_config_id=main_config_id).all()]
-    return response(True, 200, "成功", {
-        "send_history": send_history_list,
-        "receive_history": receive_history_list
-    })
+def send_history(user_id, main_config_id, history_id=None):
+    request_method = request.method
+    request_args = request.args
+    request_json = request.json
+    return config_resource(user_id, MainConfig, main_config_id, request_method, request_args, request_json, send_history_parameter,
+                    son_model=SendHistory, son_id=history_id)
+
+@main_config_blueprint.route('/<int:main_config_id>/receive_history', methods=['GET'])
+@main_config_blueprint.route('/<int:main_config_id>/receive_history/<int:history_id>', methods=['GET', 'DELETE'])
+@is_login
+def receive_history(user_id, main_config_id, history_id=None):
+    request_method = request.method
+    request_args = request.args
+    request_json = request.json
+    return config_resource(user_id, MainConfig, main_config_id, request_method, request_args, request_json, receive_history_parameter,
+                    son_model=ReceiveHistory, son_id=history_id)
 
 @main_config_blueprint.route('/<int:main_config_id>/split_excel', methods=['GET'])
 @is_login

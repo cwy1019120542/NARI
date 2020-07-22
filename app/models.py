@@ -80,7 +80,6 @@ class SendConfig(db.Model):
     change_timestamp = db.Column(db.Integer)
     ip = db.Column(db.String(50))
     port = db.Column(db.Integer)
-    agreement = db.Column(db.String(10))
     status = db.Column(db.Integer, default=1)
 
     def get_info(self, main_config_id=None):
@@ -101,7 +100,6 @@ class SendConfig(db.Model):
                 "change_timestamp": self.change_timestamp,
                 "ip": self.ip,
                 "port": self.port,
-                "agreement": self.agreement,
                 "status": self.status,
                 "send_excel": send_excel
             }
@@ -117,14 +115,12 @@ class ReceiveConfig(db.Model):
     is_remind = db.Column(db.Boolean)
     remind_ip = db.Column(db.String(50))
     remind_port = db.Column(db.Integer)
-    remind_agreement = db.Column(db.String(10))
     remind_subject = db.Column(db.String(50))
     remind_content = db.Column(db.Text)
     create_timestamp = db.Column(db.Integer)
     change_timestamp = db.Column(db.Integer)
     ip = db.Column(db.String(50))
     port = db.Column(db.Integer)
-    agreement = db.Column(db.String(10))
     read_start_timestamp = db.Column(db.Integer)
     read_end_timestamp = db.Column(db.Integer)
     status = db.Column(db.Integer, default=1)
@@ -143,14 +139,12 @@ class ReceiveConfig(db.Model):
                 "is_remind": self.is_remind,
                 "remind_ip": self.remind_ip,
                 "remind_port": self.remind_port,
-                "remind_agreement": self.remind_agreement,
                 "remind_subject": self.remind_subject,
                 "remind_content": self.remind_content,
                 "create_timestamp": self.create_timestamp,
                 "change_timestamp": self.change_timestamp,
                 "ip": self.ip,
                 "port": self.port,
-                "agreement": self.agreement,
                 "read_start_timestamp": self.read_start_timestamp,
                 "read_end_timestamp": self.read_end_timestamp,
                 "status": self.status,
@@ -179,8 +173,10 @@ class SendHistory(db.Model):
     target = db.Column(db.String(50))
     email = db.Column(db.String(50))
     main_config_id = db.Column(db.Integer)
-    timestamp = db.Column(db.Integer)
-    status = db.Column(db.Boolean)
+    create_timestamp = db.Column(db.Integer)
+    change_timestamp = db.Column(db.Integer)
+    status = db.Column(db.Integer, default=1)
+    is_success = db.Column(db.Boolean)
     message = db.Column(db.String(50))
 
     def get_info(self):
@@ -189,9 +185,10 @@ class SendHistory(db.Model):
             "target": self.target,
             "email": self.email,
             "main_config_id": self.main_config_id,
-            "timestamp": self.timestamp,
-            "status": self.status,
-            "message": self.message
+            "create_timestamp": self.create_timestamp,
+            "is_success": self.is_success,
+            "message": self.message,
+            "status": self.status
         }
 
 class ReceiveHistory(db.Model):
@@ -200,8 +197,10 @@ class ReceiveHistory(db.Model):
     target = db.Column(db.String(50))
     email = db.Column(db.String(50))
     main_config_id = db.Column(db.Integer)
-    timestamp = db.Column(db.Integer)
-    status = db.Column(db.Boolean)
+    create_timestamp = db.Column(db.Integer)
+    change_timestamp = db.Column(db.Integer)
+    status = db.Column(db.Integer, default=1)
+    is_success = db.Column(db.Boolean)
     message = db.Column(db.String(50))
 
     def get_info(self):
@@ -210,7 +209,8 @@ class ReceiveHistory(db.Model):
             "target": self.target,
             "email": self.email,
             "main_config_id": self.main_config_id,
-            "timestamp": self.timestamp,
-            "status": self.status,
-            "message": self.message
+            "create_timestamp": self.create_timestamp,
+            "is_success": self.is_success,
+            "message": self.message,
+            "status": self.status
         }

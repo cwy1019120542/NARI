@@ -5,6 +5,7 @@ import smtplib
 import zipfile
 import openpyxl
 from urllib.parse import quote
+from sqlalchemy import and_
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
@@ -35,10 +36,10 @@ def parameter_check(request_data, parameter_group_list, is_all=True):
         return False, response(False, 400, "请求体为空")
     clean_data = {}
     if is_all:
-        judge_list = [i for i, j, k in parameter_group_list if i not in request_data]
+        judge_list = [i for i, j, k, l in parameter_group_list if i not in request_data]
         if judge_list:
             return False, response(False, 400, "参数缺失")
-    for parameter, parameter_type, is_none in parameter_group_list:
+    for parameter, parameter_type, is_none, max_len in parameter_group_list:
         if parameter not in request_data and not is_all:
             continue
         value = request_data[parameter]
@@ -52,6 +53,8 @@ def parameter_check(request_data, parameter_group_list, is_all=True):
                 value = parameter_type(value)
             except:
                 return False, response(False, 400, "数据格式错误")
+        if len(str(value)) > max_len:
+            return False, response(False, 400, "字段长度超过限制")
         clean_data[parameter] = value
     return True, clean_data
 
@@ -63,29 +66,20 @@ def is_login(func):
         return func(user_id, *args, **kwargs)
     return wrapper
 
-def page_filter(model, clean_data):
+def page_filter(model, clean_data, fuzzy_field):
     limit = clean_data.pop('limit', 10)
     offset = clean_data.pop('offset', 0)
-    page = clean_data.pop('page', 1)
-    per_page = clean_data.pop('per_page', 10)
     if "status" not in clean_data:
         clean_data["status"] = 1
     page_info = {
         "limit": limit,
         "offset": offset,
-        "page": page,
-        "per_page": per_page
     }
-    if offset >= per_page:
-        add_page, offset = divmod(offset, per_page)
-        page += add_page
-    all_offset = (page - 1) * per_page
-    left_limit = per_page - offset
-    real_limit = limit if limit <= left_limit else left_limit
     if not clean_data:
-        data_list = db.session.query(model).limit(real_limit).offset(all_offset).all()
+        data_list = db.session.query(model).limit(limit).offset(offset).all()
     else:
-        data_list = db.session.query(model).filter_by(**clean_data).limit(real_limit).offset(all_offset).all()
+        filter_query_list = and_([getattr(model, i)==clean_data[i] if i not in fuzzy_field else getattr(model, i).contains(clean_data[i]) for i in clean_data.keys()])
+        data_list = db.session.query(model).filter(filter_query_list).limit(limit).offset(offset).all()
     return data_list, page_info
 
 def captcha_check(email, captcha):
@@ -95,26 +89,22 @@ def captcha_check(email, captcha):
     if int(db_captcha) != int(captcha):
         return "验证码错误"
 
-def get_page_parameter(parameter, extra=[]):
-    copy_parameter = parameter[:]
-    copy_parameter.extend([('id', int, False), ('page', int, False), ('offset', int, False), ('per_page', int, False), ('limit', int, False)])
-    copy_parameter.extend(extra)
-    return copy_parameter
-
-
-def resource_limit(model, resource_id, user_id=None):
+def resource_limit(model, resource_id, user_id=None, main_config_id=None):
     resource_query = db.session.query(model).filter_by(id=resource_id, status=1)
     resource = resource_query.first()
     if not resource:
         return False, response(False, 404, "请求的资源不存在")
-    return_list = [resource_query, resource]
+    return_list = [resource_query, resource, None]
     if user_id:
         user = db.session.query(User).get(user_id)
         if not user:
             return False, response(False, 401, f"用户{user_id}不存在")
         if resource.user_id != user_id:
             return False, response(False, 403, f"用户{user_id}没有权限访问该资源")
-        return_list.append(user)
+        return_list[2] = user
+    if main_config_id:
+        if resource.main_config_id != main_config_id:
+            return False, response(False, 403, f"配置{main_config_id}没有权限访问该资源")
     return True, return_list
 
 def file_resource(model, config_id, file_dir, request_method, request_parameter, request_file, user_id):
@@ -162,28 +152,36 @@ def file_resource(model, config_id, file_dir, request_method, request_parameter,
             return response(False, 404, "请求的资源不存在")
 
 
-def config_resource(user_id, model, config_id, request_method, request_args, request_json, config_parameter):
+def config_resource(user_id, model, config_id, request_method, request_args, request_json, config_parameter, son_model=None, son_id=None):
     if config_id:
         is_success, return_data = resource_limit(model, config_id, user_id)
         if is_success:
             main_config_query, main_config, user = return_data
         else:
             return return_data
+    if son_id:
+        is_success, return_data = resource_limit(son_model, son_id, None, config_id)
+        if is_success:
+            main_config_query, main_config, _ = return_data
+        else:
+            return return_data
     if request_method == 'GET':
         if config_id:
             result = main_config.get_info()
             return response(True, 200, "成功", result)
-        main_config_page_parameter = get_page_parameter(config_parameter)
-        is_right, clean_data = parameter_check(request_args, main_config_page_parameter, False)
+        config_parameter_get = config_parameter["GET"]
+        fuzzy_field = config_parameter["fuzzy_field"]
+        is_right, clean_data = parameter_check(request_args, config_parameter_get, False)
         if not is_right:
             return response(False, 400, clean_data)
         if user_id:
             clean_data['user_id'] = user_id
-        main_config_list, page_info = page_filter(model, clean_data)
+        main_config_list, page_info = page_filter(model, clean_data, fuzzy_field)
         result = [i.get_info() for i in main_config_list]
         return response(True, 200, "成功", result, **page_info)
     elif request_method == 'POST':
-        is_right, clean_data = parameter_check(request_json, config_parameter)
+        config_parameter_post = config_parameter["POST"]
+        is_right, clean_data = parameter_check(request_json, config_parameter_post)
         if not is_right:
             return clean_data
         if user_id:
@@ -196,7 +194,8 @@ def config_resource(user_id, model, config_id, request_method, request_args, req
         result = new_config.get_info()
         return response(True, 200, "成功", result)
     elif request_method == 'PUT':
-        is_right, clean_data = parameter_check(request_json, config_parameter, False)
+        config_parameter_post = config_parameter["POST"]
+        is_right, clean_data = parameter_check(request_json, config_parameter_post, False)
         if not is_right:
             return clean_data
         clean_data['change_timestamp'] = int(time.time())

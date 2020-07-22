@@ -2,8 +2,8 @@ import random
 import smtplib
 from flask import Blueprint, request, current_app, session
 from ..extention import bcrypt, db, redis
-from ..api_config import user_parameter
-from ..func_tools import response, parameter_check, page_filter, captcha_check, is_login, get_page_parameter, resource_limit, smtp_send_mail
+from ..parameter_config import user_parameter
+from ..func_tools import response, parameter_check, page_filter, captcha_check, is_login, resource_limit, smtp_send_mail
 from ..models import User
 
 user_blueprint = Blueprint('user', __name__)
@@ -23,16 +23,15 @@ def user(user_id=None):
             user_info = user.get_info()
             return response(True, 200, "成功", user_info)
         request_args = request.args
-        user_page_parameter = get_page_parameter(user_parameter)
-        is_right, clean_data = parameter_check(request_args, user_page_parameter, False)
+        is_right, clean_data = parameter_check(request_args, user_parameter["GET"], False)
         if not is_right:
             return clean_data
-        user_list, page_info = page_filter(User, clean_data)
+        user_list, page_info = page_filter(User, clean_data, user_parameter["fuzzy_field"])
         result = [i.get_info() for i in user_list]
         return response(True, 200, "成功", result, **page_info)
     elif request.method == 'POST':
         request_json = request.json
-        is_right, clean_data = parameter_check(request_json, user_parameter)
+        is_right, clean_data = parameter_check(request_json, user_parameter["POST"])
         if not is_right:
             return clean_data
         email = clean_data['email']
@@ -53,7 +52,7 @@ def user(user_id=None):
         return response(True, 201, "成功", result)
     elif request.method == 'PUT':
         request_json = request.json
-        is_right, clean_data = parameter_check(request_json, user_parameter[2:], False)
+        is_right, clean_data = parameter_check(request_json, user_parameter["PUT"], False)
         if not is_right:
             return clean_data
         if 'password' in clean_data:
@@ -72,7 +71,7 @@ def user(user_id=None):
 @user_blueprint.route('/login', methods=['POST'])
 def login():
     request_json = request.json
-    parameter_group_list = (('email', str, False), ('password', str, False))
+    parameter_group_list = (('email', str, False, 50), ('password', str, False, 100))
     is_right, clean_data = parameter_check(request_json, parameter_group_list)
     if not is_right:
         return clean_data
@@ -92,7 +91,7 @@ def login():
 @user_blueprint.route('/send_captcha', methods=['POST'])
 def send_captcha():
     request_json = request.json
-    is_right, clean_data = parameter_check(request_json, (('email', str, False), ))
+    is_right, clean_data = parameter_check(request_json, (('email', str, False, 50), ))
     if not is_right:
         return clean_data
     captcha = random.randrange(10000, 99999)

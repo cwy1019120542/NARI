@@ -1,7 +1,7 @@
 from flask import Blueprint, request
 from ..func_tools import is_login, config_resource
 from ..models import ReceiveConfig
-from ..api_config import receive_config_parameter
+from ..parameter_config import receive_config_parameter
 
 receive_config_blueprint = Blueprint('receive_config', __name__)
 
