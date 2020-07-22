@@ -138,6 +138,8 @@ def file_resource(resource_group, file_dir, request_method, request_parameter, r
             os.makedirs(file_dir)
         file = request_file.get(request_parameter)
         file_name = file.filename.strip('"')
+        if not file_name.endswith('.xlsx'):
+            return response(False, 400, "文件格式错误，需为xlsx")
         file_path = os.path.join(file_dir, file_name)
         file.save(file_path)
         return response(True, 200, "成功")
@@ -369,7 +371,7 @@ def send_multi_mail(ip, port, username, password, email_list, subject, content):
         except Exception as error:
             print(error)
             continue
-    smtp_obj.quit()
+    # smtp_obj.quit()
     return True, "成功"
 
 def get_task_info(task_id):

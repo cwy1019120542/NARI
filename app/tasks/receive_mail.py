@@ -189,7 +189,7 @@ def receive_mail(config, main_config, receive_config):
                                 no_attachment_target_list.add(target)
             else:
                 generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {subject} {msg_timestamp} 主题不符合")
-        pop_obj.quit()
+        # pop_obj.quit()
         for no_attachment_target in no_attachment_target_list:
             email_group = '|'.join(match_dict[no_attachment_target])
             history_list.append(ReceiveHistory(email=email_group, target=no_attachment_target, create_timestamp=time.time(), main_config_id=main_config_id, is_success=False, message="缺失附件"))
