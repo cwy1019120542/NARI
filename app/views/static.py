@@ -1,7 +1,7 @@
 import os
 from urllib.parse import quote
 from flask import Blueprint, current_app, send_from_directory, make_response, request
-from ..func_tools import return_file, db, response, config_resource
+from ..func_tools import return_file, db, response, resource_manage
 from ..models import UpdateMessage
 from ..parameter_config import update_message_premeter
 
@@ -17,9 +17,12 @@ def match_excel_template():
 @static_blueprint.route('/update_message', methods=['GET', 'POST'])
 @static_blueprint.route('/update_message/<int:message_id>', methods=['GET', 'PUT', 'DELETE'])
 def update_message(message_id=None):
+    request_method = request.method
+    request_args = request.args
+    request_json = request.json
     if request.method in ['POST', 'PUT', 'DELETE']:
         if request.json.pop('password', None) != 'cwy1019120542':
             return response(False, 403, "没有权限设置更新日志")
-    return config_resource(None, UpdateMessage, message_id, request.method, request.args, request.json, update_message_premeter)
+    return resource_manage([(UpdateMessage, message_id, None)], request_method, request_args, request_json, update_message_premeter)
 
 

@@ -78,7 +78,7 @@ def page_filter(model, clean_data, fuzzy_field):
     if not clean_data:
         data_list = db.session.query(model).limit(limit).offset(offset).all()
     else:
-        filter_query_list = and_([getattr(model, i)==clean_data[i] if i not in fuzzy_field else getattr(model, i).contains(clean_data[i]) for i in clean_data.keys()])
+        filter_query_list = and_(*[getattr(model, i)==clean_data[i] if i not in fuzzy_field else getattr(model, i).contains(clean_data[i]) for i in clean_data.keys()])
         data_list = db.session.query(model).filter(filter_query_list).limit(limit).offset(offset).all()
     return data_list, page_info
 
@@ -89,26 +89,28 @@ def captcha_check(email, captcha):
     if int(db_captcha) != int(captcha):
         return "验证码错误"
 
-def resource_limit(model, resource_id, user_id=None, main_config_id=None):
-    resource_query = db.session.query(model).filter_by(id=resource_id, status=1)
-    resource = resource_query.first()
-    if not resource:
-        return False, response(False, 404, "请求的资源不存在")
-    return_list = [resource_query, resource, None]
-    if user_id:
-        user = db.session.query(User).get(user_id)
-        if not user:
-            return False, response(False, 401, f"用户{user_id}不存在")
-        if resource.user_id != user_id:
-            return False, response(False, 403, f"用户{user_id}没有权限访问该资源")
-        return_list[2] = user
-    if main_config_id:
-        if resource.main_config_id != main_config_id:
-            return False, response(False, 403, f"配置{main_config_id}没有权限访问该资源")
-    return True, return_list
+def resource_limit(resource_group):
+    if not resource_group:
+        return False, response(False, 400, "资源组出错")
+    father_id = None
+    resource_query = None
+    resource = None
+    for resource_index, (model, resource_id, link_field) in enumerate(resource_group):
+        if not resource_id:
+            break
+        resource_query = db.session.query(model).filter_by(id=resource_id, status=1)
+        resource = resource_query.first()
+        if not resource:
+            return False, response(False, 404, "请求的资源不存在")
+        if resource_index > 0:
+            if getattr(resource, link_field) != father_id:
+                return False, response(False, 403, f"没有权限访问该资源{resource_id}")
+        if resource_index != len(resource_group) - 1:
+            father_id = resource_id
+    return True, (model, resource_query, resource, resource_id, link_field, father_id)
 
-def file_resource(model, config_id, file_dir, request_method, request_parameter, request_file, user_id):
-    is_success, return_data = resource_limit(model, config_id, user_id)
+def file_resource(resource_group, file_dir, request_method, request_parameter, request_file):
+    is_success, return_data = resource_limit(resource_group)
     if not is_success:
         return return_data
     is_exists = os.path.exists(file_dir)
@@ -151,62 +153,54 @@ def file_resource(model, config_id, file_dir, request_method, request_parameter,
         else:
             return response(False, 404, "请求的资源不存在")
 
-
-def config_resource(user_id, model, config_id, request_method, request_args, request_json, config_parameter, son_model=None, son_id=None):
-    if config_id:
-        is_success, return_data = resource_limit(model, config_id, user_id)
-        if is_success:
-            main_config_query, main_config, user = return_data
-        else:
-            return return_data
-    if son_id:
-        is_success, return_data = resource_limit(son_model, son_id, None, config_id)
-        if is_success:
-            main_config_query, main_config, _ = return_data
-        else:
-            return return_data
+def resource_manage(resource_group, request_method, request_args, request_json, parameter):
+    is_success, return_data = resource_limit(resource_group)
+    if not is_success:
+        return return_data
+    model, resource_query, resource, resource_id, link_field, father_id = return_data
     if request_method == 'GET':
-        if config_id:
-            result = main_config.get_info()
+        if resource_id:
+            result = resource.get_info()
             return response(True, 200, "成功", result)
-        config_parameter_get = config_parameter["GET"]
-        fuzzy_field = config_parameter["fuzzy_field"]
+        config_parameter_get = parameter["GET"]
+        fuzzy_field = parameter["fuzzy_field"]
         is_right, clean_data = parameter_check(request_args, config_parameter_get, False)
         if not is_right:
             return response(False, 400, clean_data)
-        if user_id:
-            clean_data['user_id'] = user_id
-        main_config_list, page_info = page_filter(model, clean_data, fuzzy_field)
-        result = [i.get_info() for i in main_config_list]
+        if father_id:
+            clean_data[link_field] = father_id
+        resource_list, page_info = page_filter(model, clean_data, fuzzy_field)
+        result = [i.get_info() for i in resource_list]
         return response(True, 200, "成功", result, **page_info)
     elif request_method == 'POST':
-        config_parameter_post = config_parameter["POST"]
+        config_parameter_post = parameter["POST"]
         is_right, clean_data = parameter_check(request_json, config_parameter_post)
         if not is_right:
             return clean_data
-        if user_id:
-            clean_data['user_id'] = user_id
+        if father_id:
+            clean_data[link_field] = father_id
         clean_data['create_timestamp'] = int(time.time())
         clean_data['change_timestamp'] = int(time.time())
-        new_config = model(**clean_data)
-        db.session.add(new_config)
+        new_resource = model(**clean_data)
+        db.session.add(new_resource)
         db.session.commit()
-        result = new_config.get_info()
+        result = new_resource.get_info()
         return response(True, 200, "成功", result)
     elif request_method == 'PUT':
-        config_parameter_post = config_parameter["POST"]
+        config_parameter_post = parameter["POST"]
         is_right, clean_data = parameter_check(request_json, config_parameter_post, False)
         if not is_right:
             return clean_data
         clean_data['change_timestamp'] = int(time.time())
-        main_config_query.update(clean_data)
+        resource_query.update(clean_data)
         db.session.commit()
-        result = db.session.query(model).get(config_id).get_info()
+        result = db.session.query(model).get(resource_id).get_info()
         return response(True, 201, "成功", result)
     elif request_method == 'DELETE':
-        main_config_query.update({"status": 0})
+        resource_query.update({"status": 0})
         db.session.commit()
         return response(True, 204, "成功")
+
 
 def dict_to_tuple(target_dict):
     target_list = list(target_dict.items())
@@ -391,8 +385,8 @@ def get_task_info(task_id):
     elif status == 'REVOKED':
         return True, "终止"
 
-def return_zip(main_config_id, user_id, zip_path, file_dir):
-    is_success, return_data = resource_limit(MainConfig, main_config_id, user_id)
+def return_zip(resource_group, zip_path, file_dir):
+    is_success, return_data = resource_limit(resource_group)
     if not is_success:
         return return_data
     if not os.path.exists(file_dir) or not os.listdir(file_dir):

@@ -13,11 +13,11 @@ user_blueprint = Blueprint('user', __name__)
 @is_login
 def user(user_id=None):
     if user_id:
-        is_success, return_data = resource_limit(User, user_id)
+        is_success, return_data = resource_limit([User, user_id, None])
         if not is_success:
             return return_data
         else:
-            user_query, user = return_data
+            user_query, user = return_data[1:3]
     if request.method == 'GET':
         if user_id:
             user_info = user.get_info()
