@@ -48,8 +48,8 @@ class MainConfig(db.Model):
 
     def get_info(self):
         from .func_tools import get_task_info
-        send_task_id = redis.get(f'main_config_{self.id}_send')
-        receive_task_id = redis.get(f'main_config_{self.id}_receive')
+        send_task_id = redis.get(f'{self.id}_send_task_id')
+        receive_task_id = redis.get(f'{self.id}_receive_task_id')
         send_task_info = get_task_info(send_task_id)
         receive_task_info = get_task_info(receive_task_id)
         send_config_info = self.get_son_info(SendConfig, self.send_config_id)
@@ -99,6 +99,7 @@ class SendConfig(db.Model):
         send_excel = get_file_name(config_files_dir, main_config_id, 'send_excel') if main_config_id else None
         return {
                 "id": self.id,
+                "user_id": self.user_id,
                 "subject": self.subject,
                 "content": self.content,
                 "sheet": self.sheet,

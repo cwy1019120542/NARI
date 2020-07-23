@@ -170,7 +170,7 @@ def receive_mail(app_config_info, main_config_info):
                         filename = dh[0][0]
                         if dh[0][1]:
                             filename = decode_str(str(filename, dh[0][1]))
-                            if not filename.endswith('.xlsx') or not filename.endswith('.xls'):
+                            if not filename.endswith('.xlsx') and not filename.endswith('.xls'):
                                 generate_log(main_config_id, "error", f"main_config_id {main_config_id} filename {filename} 格式不合法")
                                 history_list.append(ReceiveHistory(email=from_email, target=target_group_str, create_timestamp=time.time(), main_config_id=main_config_id, is_success=False, message="附件格式不合法"))
                                 continue
@@ -201,7 +201,7 @@ def receive_mail(app_config_info, main_config_info):
             if target not in no_attachment_target_list:
                 email_group = '|'.join(match_dict[target])
                 history_list.append(ReceiveHistory(email=email_group, target=target, create_timestamp=time.time(), main_config_id=main_config_id, is_success=False, message="未回复"))
-        generate_log(main_config_id, "info", f"main_config_id {main_config_id} 邮件收取完毕 no_attachment_list {no_attachment_list} no_response_list {no_response_list}")
+        generate_log(main_config_id, "info", f"main_config_id {main_config_id} 邮件收取完毕")
         if is_remind:
             remind_target_list = []
             remind_target_list.extend(no_response_list)

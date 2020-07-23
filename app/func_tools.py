@@ -146,7 +146,7 @@ def file_resource(resource_group, file_dir, request_method, request_parameter, r
             os.makedirs(file_dir)
         file = request_file.get(request_parameter)
         file_name = file.filename.strip('"')
-        if not file_name.endswith('.xlsx') or not file_name.endswith('.xls'):
+        if not file_name.endswith('.xlsx') and not file_name.endswith('.xls'):
             return response(False, 400, "文件格式错误，需为xlsx或xls")
         file_path = os.path.join(file_dir, file_name)
         file.save(file_path)
@@ -414,15 +414,15 @@ def return_zip(resource_group, zip_path, file_dir):
 
 def start_task(app_config, main_config_info, function_name, task_function):
     main_config_id = main_config_info["id"]
+    user_id = main_config_info["user_id"]
     config_info = main_config_info[f"{function_name}_config_info"]
     if config_info:
         config_id = config_info["id"]
-        user_id = config_info["user_id"]
         now_time = int(time.time())
         task_id = create_task_id(function_name, user_id=user_id, config_id=config_id,
                                       main_config_id=main_config_id)
         is_timing = config_info["is_timing"]
-        start_time = config_info["start_time"]
+        start_time = config_info["start_timestamp"]
         countdown = 0
         if is_timing:
             if not start_time or start_time < now_time:

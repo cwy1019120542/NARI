@@ -74,17 +74,16 @@ def send_mail(app_config_info, main_config_info):
         if split_field:
             for sheet, field_row, is_split in zip(sheet_list, field_row_list, is_split_list):
                 send_sheet = send_excel[sheet]
-                if is_split:
-                    field_row = get_header_row(send_sheet, field_row)
-                    field_row = int(field_row) - 1
-                    total_data_list = list(send_sheet.values)
-                    data_list = total_data_list[field_row+1:]
-                    field_data_list = total_data_list[field_row]
-                    split_field_index = field_data_list.index(split_field)
-                    for data in data_list:
-                        split_value = data[split_field_index]
-                        if split_value not in target_list:
-                            target_list.append(split_value)
+                field_row = get_header_row(send_sheet, field_row)
+                field_row = int(field_row) - 1
+                total_data_list = list(send_sheet.values)
+                data_list = total_data_list[field_row + 1:]
+                field_data_list = total_data_list[field_row]
+                split_field_index = field_data_list.index(split_field)
+                for data in data_list:
+                    split_value = data[split_field_index]
+                    if split_value not in target_list:
+                        target_list.append(split_value)
         else:
             target_list = list(match_dict.keys())
         for target in target_list:
