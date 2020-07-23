@@ -19,18 +19,19 @@ def generate_log(main_config_id, level, message):
     redis.rpush(f"{main_config_id}_send_log", message)
 
 @celery.task(track_started=True)
-def send_mail(config, main_config_info, send_config_info):
+def send_mail(app_config_info, main_config_info):
     try:
         main_config_id = main_config_info['id']
         redis.delete(f"{main_config_id}_send_log")
         generate_log(main_config_id, "info", f"main_config_id {main_config_id} 发邮件任务开始")
-        config_files_dir = config['CONFIG_FILES_DIR']
+        config_files_dir = app_config_info['CONFIG_FILES_DIR']
         is_success, return_data = get_match_dict(config_files_dir, main_config_id)
         if not is_success:
             generate_log(main_config_id, "critical", f"main_config_id {main_config_id} 缺失邮箱对应表")
             return "运行失败,缺失邮箱对应表"
         match_dict = return_data
         total_target_list = list(match_dict.keys())
+        send_config_info = main_config_info["send_config_info"]
         subject = send_config_info['subject']
         content = send_config_info['content']
         sheet_list = send_config_info['sheet'].split('|')

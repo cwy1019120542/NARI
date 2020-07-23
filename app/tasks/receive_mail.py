@@ -14,7 +14,7 @@ from email.parser import Parser
 from email.header import decode_header
 from email.utils import parseaddr
 from ..extention import celery, Session, receive_logger, redis
-from ..func_tools import get_match_dict, get_file_path, response, get_header_row, get_column_number, smtp_send_mail, send_multi_mail
+from ..func_tools import get_match_dict, get_file_path, response, get_header_row, get_column_number, smtp_send_mail, send_multi_mail, to_xlsx
 
 def generate_log(main_config_id, level, message):
     getattr(receive_logger, level)(message)
@@ -37,15 +37,14 @@ def getTimeStamp(utcstr):
         localtimestamp = utcdatetime.timestamp()
         return localtimestamp
 
-def pop3_receive_mail():
-    pass
-
 def get_column_data_list(sheet, field_data_list, header_row, insert_none=True):
     column_number_list = get_column_number()
     max_row = sheet.max_row - header_row
-    field_data_list_test = [i.value for i in sheet[header_row] if i.value]
+    field_data_list_test = [i.value for i in sheet[header_row]]
     column_data_list = []
     for field in field_data_list:
+        if not field:
+            column_data_list.append([None for i in range(max_row)])
         if field in field_data_list_test:
             field_index = field_data_list_test.index(field)
             column_number = column_number_list[field_index]
@@ -74,16 +73,19 @@ def get_target_group(target, match_dict):
     return target_group
 
 @celery.task(track_started=True)
-def receive_mail(config, main_config, receive_config):
+def receive_mail(app_config_info, main_config_info):
     try:
-        main_config_id = main_config['id']
+        main_config_id = main_config_info['id']
+        main_config_name = main_config_info["config_name"]
+        result_excel_name = f"{main_config_name}.xlsx"
         redis.delete(f"{main_config_id}_receive_log")
         generate_log(main_config_id, "info", f"main_config_id {main_config_id} 收邮件任务开始")
-        config_files_dir = config['CONFIG_FILES_DIR']
-        username = main_config['email']
-        password = main_config['password']
-        host = receive_config['ip']
-        port = receive_config['port']
+        config_files_dir = app_config_info['CONFIG_FILES_DIR']
+        username = main_config_info['email']
+        password = main_config_info['password']
+        receive_config_info = main_config_info["receive_config_info"]
+        host = receive_config_info['ip']
+        port = receive_config_info['port']
         is_success, match_dict = get_match_dict(config_files_dir, main_config_id)
         if not is_success:
             generate_log(main_config_id, "critical", f"main_config_id {main_config_id} 缺失邮箱对应表")
@@ -96,15 +98,15 @@ def receive_mail(config, main_config, receive_config):
                     new_match_dict[from_email].append(key)
                 else:
                     new_match_dict[from_email] = [key]
-        target_subject = receive_config['subject']
-        sheet_info = receive_config['sheet_info']
-        read_start_timestamp = receive_config['read_start_timestamp']
-        read_end_timestamp = receive_config['read_end_timestamp']
-        is_remind = receive_config['is_remind']
-        remind_subject = receive_config['remind_subject']
-        remind_content = receive_config['remind_content']
-        remind_ip = receive_config['remind_ip']
-        remind_port = receive_config['remind_port']
+        target_subject = receive_config_info['subject']
+        sheet_info = receive_config_info['sheet_info']
+        read_start_timestamp = receive_config_info['read_start_timestamp']
+        read_end_timestamp = receive_config_info['read_end_timestamp']
+        is_remind = receive_config_info['is_remind']
+        remind_subject = receive_config_info['remind_subject']
+        remind_content = receive_config_info['remind_content']
+        remind_ip = receive_config_info['remind_ip']
+        remind_port = receive_config_info['remind_port']
         generate_log(main_config_id, "info", f"main_config_id {main_config_id} 开始收邮件")
         try:
             pop_obj = poplib.POP3(host)
@@ -168,7 +170,7 @@ def receive_mail(config, main_config, receive_config):
                         filename = dh[0][0]
                         if dh[0][1]:
                             filename = decode_str(str(filename, dh[0][1]))
-                            if not filename.endswith('.xlsx'):
+                            if not filename.endswith('.xlsx') or not filename.endswith('.xls'):
                                 generate_log(main_config_id, "error", f"main_config_id {main_config_id} filename {filename} 格式不合法")
                                 history_list.append(ReceiveHistory(email=from_email, target=target_group_str, create_timestamp=time.time(), main_config_id=main_config_id, is_success=False, message="附件格式不合法"))
                                 continue
@@ -177,6 +179,8 @@ def receive_mail(config, main_config, receive_config):
                             file_path = os.path.join(file_dir, f'{target_group_str}_{filename}')
                             with open(file_path, 'wb') as f:
                                 f.write(data)
+                            if not filename.endswith('.xlsx'):
+                                to_xlsx(file_path)
                             for target in target_group:
                                 if target in target_list:
                                     target_list.remove(target)
@@ -258,11 +262,11 @@ def receive_mail(config, main_config, receive_config):
                         receive_excel.close()
                     result_list.append(all_sheet_data)
                     generate_log(main_config_id, "info", f"main_config_id {main_config_id} 表格数据生成完毕")
-                work_book = openpyxl.Workbook('结果表.xlsx')
+                work_book = openpyxl.Workbook(result_excel_name)
                 result_dir = os.path.join(config_files_dir, str(main_config_id), "result_excel")
                 if not os.path.exists(result_dir):
                     os.makedirs(result_dir)
-                result_path = os.path.join(result_dir, '结果表.xlsx')
+                result_path = os.path.join(result_dir, result_excel_name)
                 for sheet_name, result in reversed(list(zip(sheet_name_list, result_list))):
                     sheet = work_book.create_sheet(sheet_name, 0)
                     for data in result:
@@ -274,7 +278,7 @@ def receive_mail(config, main_config, receive_config):
                 result_dir = os.path.join(config_files_dir, str(main_config_id), "result_excel")
                 if not os.path.exists(result_dir):
                     os.makedirs(result_dir)
-                result_path = os.path.join(result_dir, '结果表.xlsx')
+                result_path = os.path.join(result_dir, result_excel_name)
                 shutil.copy(template_path, result_path)
                 result_list = []
                 result_excel = openpyxl.load_workbook(result_path, data_only=True)
@@ -337,7 +341,7 @@ def receive_mail(config, main_config, receive_config):
                                 else:
                                     receive_sheet = receive_excel[sheet_name]
                             column_data_list = get_column_data_list(receive_sheet, field_data_list, header_row)
-                            all_row_data = [i for i in zip(*column_data_list) if i.count(None) < 2]
+                            all_row_data = [i for i in zip(*column_data_list) if i.count(None) != len(i)]
                             all_sheet_data.extend(all_row_data)
                             receive_excel.close()
                         result_list.append(all_sheet_data)
@@ -394,12 +398,3 @@ def receive_mail(config, main_config, receive_config):
     except Exception as error:
         generate_log(main_config_id, "critical", f"main_config_id {main_config_id} 运行失败 {print_exc()}")
         return "运行失败,未知错误"
-
-
-if __name__ == '__main__':
-    config = {'CONFIG_FILES_DIR': r'C:\Users\cwy\PycharmProjects\untitled1\NARI\app\config_files'}
-    main_config_info = {'id': 2, 'email': '1019120542@qq.com', 'password': 'aswhfohkwtaebfcc'}
-    receive_config_info = {'subject': "测试邮件", 'content': "内容", "sheet": "Sheet1", "read_number": 100, 'split_field': "用途",
-                        "ip": "pop.qq.com", "port": 110, "sheet_info": "[]", "is_remind": False, "remind_subject": None, "remind_content": None,
-                           "remind_ip": None, "remind_port": None, "remind_agreement": None}
-    return_data = receive_mail(config, main_config_info, receive_config_info)

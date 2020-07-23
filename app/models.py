@@ -35,14 +35,25 @@ class MainConfig(db.Model):
     status = db.Column(db.Integer, default=1)
     run_timestamp = db.Column(db.Integer)
 
+    def get_son_info(self, model, config_id):
+        if config_id:
+            config = db.session.query(model).filter_by(id=config_id, status=1).first()
+            if config:
+                config_info = config.get_info(self.id)
+            else:
+                config_info = {}
+        else:
+            config_info = {}
+        return config_info
+
     def get_info(self):
         from .func_tools import get_task_info
         send_task_id = redis.get(f'main_config_{self.id}_send')
         receive_task_id = redis.get(f'main_config_{self.id}_receive')
         send_task_info = get_task_info(send_task_id)
         receive_task_info = get_task_info(receive_task_id)
-        send_config_info = db.session.query(SendConfig).get(self.send_config_id).get_info(self.id) if self.send_config_id else {}
-        receive_config_info = db.session.query(ReceiveConfig).get(self.receive_config_id).get_info(self.id) if self.receive_config_id else {}
+        send_config_info = self.get_son_info(SendConfig, self.send_config_id)
+        receive_config_info = self.get_son_info(ReceiveConfig, self.receive_config_id)
         config_files_dir = current_app.config['CONFIG_FILES_DIR']
         from .func_tools import get_file_name
         match_excel = get_file_name(config_files_dir, self.id, 'match_excel')

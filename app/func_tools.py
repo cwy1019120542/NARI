@@ -6,6 +6,7 @@ import zipfile
 import openpyxl
 from urllib.parse import quote
 from sqlalchemy import and_
+import pandas
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
@@ -15,6 +16,13 @@ from flask import session, jsonify, send_from_directory, make_response
 from functools import wraps
 from .extention import db, redis, celery
 from .models import User, MainConfig
+
+
+def to_xlsx(file_path):
+    file_name, suffix = os.path.splitext(file_path)
+    excel_file = pandas.read_excel(file_path)
+    excel_file.to_excel(f'{file_name}.xlsx', index=False)
+    os.remove(file_path)
 
 def response(is_succcess, status_code, message, result=[], **kwargs):
     response_json = {
@@ -138,10 +146,12 @@ def file_resource(resource_group, file_dir, request_method, request_parameter, r
             os.makedirs(file_dir)
         file = request_file.get(request_parameter)
         file_name = file.filename.strip('"')
-        if not file_name.endswith('.xlsx'):
-            return response(False, 400, "文件格式错误，需为xlsx")
+        if not file_name.endswith('.xlsx') or not file_name.endswith('.xls'):
+            return response(False, 400, "文件格式错误，需为xlsx或xls")
         file_path = os.path.join(file_dir, file_name)
         file.save(file_path)
+        if not file_name.endswith('.xlsx'):
+            to_xlsx(file_path)
         return response(True, 200, "成功")
     elif request_method == 'DELETE':
         if is_exists:
@@ -401,6 +411,33 @@ def return_zip(resource_group, zip_path, file_dir):
         zip_file.write(file_path, file_name)
     zip_file.close()
     return return_file(zip_path)
+
+def start_task(app_config, main_config_info, function_name, task_function):
+    main_config_id = main_config_info["id"]
+    config_info = main_config_info[f"{function_name}_config_info"]
+    if config_info:
+        config_id = config_info["id"]
+        user_id = config_info["user_id"]
+        now_time = int(time.time())
+        task_id = create_task_id(function_name, user_id=user_id, config_id=config_id,
+                                      main_config_id=main_config_id)
+        is_timing = config_info["is_timing"]
+        start_time = config_info["start_time"]
+        countdown = 0
+        if is_timing:
+            if not start_time or start_time < now_time:
+                return False, response(False, 400, "定时时间错误")
+            countdown = start_time - int(time.time())
+        redis.set(f'{main_config_id}_{function_name}_task_id', task_id)
+        app_config_info = {
+            "CONFIG_FILES_DIR": app_config["CONFIG_FILES_DIR"]
+        }
+        task_function.apply_async(kwargs={"app_config_info": app_config_info, "main_config_info": main_config_info},
+                              task_id=task_id, countdown=countdown)
+        return True, True
+    else:
+        return False, response(False, 400, "配置缺失")
+
 
 
 

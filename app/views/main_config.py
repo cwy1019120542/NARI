@@ -4,7 +4,7 @@ import time
 import zipfile
 import smtplib
 from flask import Blueprint, request, current_app
-from ..func_tools import is_login, response,file_resource, resource_manage, get_run_config, create_task_id, resource_limit, parameter_check, return_file, get_file_path, send_multi_mail, return_zip
+from ..func_tools import start_task, is_login, response,file_resource, resource_manage, get_run_config, create_task_id, resource_limit, parameter_check, return_file, get_file_path, send_multi_mail, return_zip
 from ..models import User, MainConfig, SendConfig, ReceiveConfig, SendHistory, ReceiveHistory
 from ..parameter_config import main_config_parameter, remind_parameter, send_history_parameter, receive_history_parameter
 from ..extention import db, redis, celery
@@ -60,59 +60,17 @@ def start(user_id, main_config_id):
     if main_config_id in active_task_id_list or main_config_id in scheduled_task_id_list:
         return response(False, 403, "该配置已在运行")
     main_config_query, main_config = return_data[1:3]
-    function_type = main_config.function_type
-    is_send = False
-    is_receive = False
-    if function_type == 1 or function_type == 3:
-        send_config_id = main_config.send_config_id
-        if send_config_id:
-            is_success, return_data = resource_limit([(User, user_id, None), (SendConfig, send_config_id, "user_id")])
-            if is_success:
-                send_config_query, send_config = return_data[1:3]
-                is_send = True
-            else:
-                return return_data
-        else:
-            return response(False, 400, "发邮件配置未设置")
-    if function_type == 2 or function_type == 3:
-        receive_config_id = main_config.receive_config_id
-        if receive_config_id:
-            is_success, return_data = resource_limit([(User, user_id, None), (ReceiveConfig, receive_config_id, "user_id")])
-            if is_success:
-                receive_config_query, receive_config = return_data[1:3]
-                is_receive = True
-            else:
-                return return_data
-        else:
-            return response(False, 400, "收邮件配置未设置")
-    app_config = current_app.config
-    config = {
-        "CONFIG_FILES_DIR": app_config["CONFIG_FILES_DIR"]
-    }
     main_config_info = main_config.get_info()
-    now_time = int(time.time())
-    if is_send:
-        send_task_id = create_task_id('send_mail', user_id=user_id, send_config_id=send_config_id, main_config_id=main_config_id)
-        send_config_info = send_config.get_info()
-        countdown = 0
-        if send_config_info['is_timing']:
-            start_time = send_config_info['start_timestamp']
-            if not start_time or start_time < now_time:
-                return response(False, 400, "定时时间错误")
-            countdown = start_time - int(time.time())
-        redis.set(f'main_config_{main_config_id}_send', send_task_id)
-        send_mail.apply_async(kwargs={"config": config, "main_config_info": main_config_info, "send_config_info": send_config_info}, task_id=send_task_id, countdown=countdown)
-    if is_receive:
-        receive_task_id = create_task_id('receive_mail', user_id=user_id, receive_config_id=receive_config_id, main_config_id=main_config_id)
-        receive_config_info = receive_config.get_info()
-        countdown = 0
-        if receive_config_info['is_timing']:
-            start_time = receive_config_info['start_timestamp']
-            if not start_time or start_time < now_time:
-                return response(False, 400, "定时时间错误")
-            countdown = start_time - int(time.time())
-        redis.set(f'main_config_{main_config_id}_receive', receive_task_id)
-        receive_mail.apply_async(kwargs={"config":config, "main_config": main_config_info, "receive_config": receive_config_info}, task_id=receive_task_id, countdown=countdown)
+    function_type = main_config_info["function_type"]
+    app_config = current_app.config
+    if function_type == 1 or function_type == 3:
+        is_success, return_data = start_task(app_config, main_config_info, "send", send_mail)
+        if not is_success:
+            return return_data
+    if function_type == 2 or function_type == 3:
+        is_success, return_data = start_task(app_config, main_config_info, "receive", receive_mail)
+        if not is_success:
+            return return_data
     return response(True, 202, "成功")
 
 @main_config_blueprint.route('/<int:main_config_id>/stop', methods=['POST'])
@@ -121,8 +79,8 @@ def stop(user_id, main_config_id):
     is_success, return_data = resource_limit([(User, user_id, None), (MainConfig, main_config_id, "user_id")])
     if not is_success:
         return return_data
-    send_task_id = redis.get(f'main_config_{main_config_id}_send')
-    receive_task_id = redis.get(f'main_config_{main_config_id}_receive')
+    send_task_id = redis.get(f'{main_config_id}_send_task_id')
+    receive_task_id = redis.get(f'{main_config_id}_receive_task_id')
     print(send_task_id, receive_task_id)
     if send_task_id:
         celery.control.revoke(send_task_id.decode(), terminate=True)
