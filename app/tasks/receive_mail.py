@@ -119,6 +119,7 @@ def receive_mail(app_config_info, main_config_info):
         mail_count = len(mail_list)
         no_response_list = []
         no_attachment_list = []
+        error_format_target_list = set()
         no_attachment_target_list = set()
         generate_log(main_config_id, "info", f"main_config_id {main_config_id} mail_count {mail_count}")
         file_dir = os.path.join(config_files_dir, str(main_config_id), "receive_excel")
@@ -171,8 +172,10 @@ def receive_mail(app_config_info, main_config_info):
                         if dh[0][1]:
                             filename = decode_str(str(filename, dh[0][1]))
                             if not filename.endswith('.xlsx') and not filename.endswith('.xls'):
+                                for target in target_group:
+                                    if target in target_list:
+                                        error_format_target_list.add(target)
                                 generate_log(main_config_id, "error", f"main_config_id {main_config_id} filename {filename} 格式不合法")
-                                history_list.append(ReceiveHistory(email=from_email, target=target_group_str, create_timestamp=time.time(), main_config_id=main_config_id, is_success=False, message="附件格式不合法"))
                                 continue
                             generate_log(main_config_id, "info", f"main_config_id {main_config_id} filename {filename} 符合条件")
                             data = part.get_payload(decode=True)
@@ -186,6 +189,8 @@ def receive_mail(app_config_info, main_config_info):
                                     target_list.remove(target)
                                 if target in no_attachment_target_list:
                                     no_attachment_target_list.remove(target)
+                                if target in error_format_target_list:
+                                    error_format_target_list.remove(target)
                             history_list.append(ReceiveHistory(email=from_email, target=target_group_str, create_timestamp=time.time(), main_config_id=main_config_id, is_success=True, message="success"))
                     else:
                         for target in target_group:
@@ -197,6 +202,9 @@ def receive_mail(app_config_info, main_config_info):
         for no_attachment_target in no_attachment_target_list:
             email_group = '|'.join(match_dict[no_attachment_target])
             history_list.append(ReceiveHistory(email=email_group, target=no_attachment_target, create_timestamp=time.time(), main_config_id=main_config_id, is_success=False, message="缺失附件"))
+        for error_format_target in error_format_target_list:
+            email_group = '|'.join(match_dict[error_format_target])
+            history_list.append(ReceiveHistory(email=email_group, target=error_format_target, create_timestamp=time.time(), main_config_id=main_config_id, is_success=False, message="附件格式不合法"))
         for target in target_list:
             if target not in no_attachment_target_list:
                 email_group = '|'.join(match_dict[target])

@@ -152,11 +152,11 @@ def send_mail(app_config_info, main_config_info):
                     try:
                         smtp_send_mail(smtp_obj, sender, email, subject, content, [split_path])
                     except Exception as error:
-                        history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email, timestamp=time.time(), status=False, message=error))
+                        history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email, create_timestamp=time.time(), is_success=False, message=error))
                         generate_log(main_config_id, "error", f"main_config_id {main_config_id} {email} 发送失败 {error}")
                         continue
                     else:
-                        history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email, timestamp=time.time(), status=True, message="success"))
+                        history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email, create_timestamp=time.time(), is_success=True, message="success"))
                         generate_log(main_config_id, "info", f"main_config_id {main_config_id} {email} 发送成功")
         smtp_obj.quit()
         session = Session()

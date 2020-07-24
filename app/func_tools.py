@@ -229,7 +229,6 @@ def create_task_id(task_name, **kwargs):
 
 def split_task_id(task_id):
     task_name, kwargs_str, _ = task_id.split('@')
-    print(kwargs_str, kwargs_str.split('#'))
     kwargs = {i.split('%')[0]:i.split('%')[1] for i in kwargs_str.split('#') if i}
     return task_name, kwargs
 
@@ -339,7 +338,6 @@ def smtp_send_mail(smtp_obj, sender, receiver, subject, content, attachment_list
         text_att = MIMEText(sendfile, 'base64', 'utf-8')
         text_att["Content-Type"] = 'application/octet-stream'
         file_dir, file_name = os.path.split(attachment)
-        print(file_name)
         # text_att["Content-Disposition"] = f'attachment; filename="{file_name}"'
         text_att.add_header('Content-Disposition', 'attachment', filename=file_name)
         msg.attach(text_att)
