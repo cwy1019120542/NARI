@@ -1,11 +1,11 @@
 main_config_parameter = {
-    "POST": [('config_name', str, False, 50), ('function_type', int, False, 11), ('send_config_id', int, True, 11), ('receive_config_id', int, True, 11), ('email', str, False, 50), ('password', str, False, 100)],
+    "POST": [('config_name', str, False, 50), ('function_type', int, False, 11), ('send_config_id', int, True, 11), ('receive_config_id', int, True, 11), ('email', str, False, 100), ('password', str, False, 100)],
     "GET": [('id', int, False, 11), ('offset', int, False, 11), ('limit', int, False, 11), ('config_name', str, False, 50), ('function_type', int, False, 11), ('send_config_id', int, True, 11), ('receive_config_id', int, True, 11), ('email', str, False, 50), ('status', int, False, 11)],
     "fuzzy_field": ["config_name", "email"]
 }
 user_parameter = {
     "POST": [('email', str, False, 50), ('captcha', int, False, 11), ('password', str, False, 100), ('name', str, False, 10), ('department', str, False, 10)],
-    "GET": [('id', int, False, 11), ('offset', int, False, 11), ('limit', int, False, 11), ('email', str, False, 50), ('name', str, False, 10), ('department', str, False, 10), ('status', int, False, 11)],
+    "GET": [('id', int, False, 11), ('offset', int, False, 11), ('limit', int, False, 11), ('email', str, False, 100), ('name', str, False, 10), ('department', str, False, 10), ('status', int, False, 11)],
     "PUT": [('password', str, False, 100), ('name', str, False, 10), ('department', str, False, 10)],
     "fuzzy_field": ["email", "name", 'department']
 }
@@ -30,10 +30,18 @@ update_message_premeter = {
     "POST": [('content', str, False, 10000)]
 }
 send_history_parameter = {
-    "GET": [('id', int, False, 11), ('offset', int, False, 11), ('limit', int, False, 11), ('target', str, False, 50), ('email', str, False, 50), ('main_config_id', int, False, 11), ('status', int, False, 11), ('is_success', bool, False, 10), ('message', str, False, 50)],
+    "GET": [('id', int, False, 11), ('offset', int, False, 11), ('limit', int, False, 11), ('target', str, False, 50), ('email', str, False, 100), ('main_config_id', int, False, 11), ('status', int, False, 11), ('is_success', bool, False, 10), ('message', str, False, 50)],
     "fuzzy_field": ["target", "email", "message"]
 }
 receive_history_parameter = {
-    "GET": [('id', int, False, 11), ('offset', int, False, 11), ('limit', int, False, 11), ('target', str, False, 50), ('email', str, False, 50), ('main_config_id', int, False, 11), ('status', int, False, 11), ('is_success', bool, False, 10), ('message', str, False, 50)],
+    "GET": [('id', int, False, 11), ('offset', int, False, 11), ('limit', int, False, 11), ('target', str, False, 50), ('email', str, False, 100), ('main_config_id', int, False, 11), ('status', int, False, 11), ('is_success', bool, False, 10), ('message', str, False, 50)],
     "fuzzy_field": ["target", "email", "message"]
+}
+sap_config_parameter = {
+    "GET": [('id', int, False, 11), ('offset', int, False, 11), ('limit', int, False, 11), ('status', int, False, 11)],
+    "POST": [("account", str, False, 50), ("password", str, False, 100), ("main_body", str, False, 100), ("subject", str, False, 100), ("start_date", str, False, 20), ("end_date", str, False, 20), ("year", str, False, 10), ("month", str, False, 10)],
+    "fuzzy_field": []
+}
+sap_log_parameter = {
+    "POST": [("log", str, False, 100)]
 }

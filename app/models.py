@@ -5,7 +5,7 @@ from .extention import db, redis
 class User(db.Model):
     __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(50))
+    email = db.Column(db.String(100))
     password = db.Column(db.String(100))
     name =  db.Column(db.String(10))
     department =  db.Column(db.String(10))
@@ -30,7 +30,7 @@ class MainConfig(db.Model):
     user_id = db.Column(db.Integer)
     create_timestamp = db.Column(db.Integer)
     change_timestamp = db.Column(db.Integer)
-    email = db.Column(db.String(50))
+    email = db.Column(db.String(100))
     password = db.Column(db.String(100))
     status = db.Column(db.Integer, default=1)
     run_timestamp = db.Column(db.Integer)
@@ -183,7 +183,7 @@ class SendHistory(db.Model):
     __tablename__ = 'send_history'
     id = db.Column(db.Integer, primary_key=True)
     target = db.Column(db.String(50))
-    email = db.Column(db.String(50))
+    email = db.Column(db.String(100))
     main_config_id = db.Column(db.Integer)
     create_timestamp = db.Column(db.Integer)
     change_timestamp = db.Column(db.Integer)
@@ -207,7 +207,7 @@ class ReceiveHistory(db.Model):
     __tablename__ = 'receive_history'
     id = db.Column(db.Integer, primary_key=True)
     target = db.Column(db.String(50))
-    email = db.Column(db.String(50))
+    email = db.Column(db.String(100))
     main_config_id = db.Column(db.Integer)
     create_timestamp = db.Column(db.Integer)
     change_timestamp = db.Column(db.Integer)
@@ -224,5 +224,38 @@ class ReceiveHistory(db.Model):
             "create_timestamp": self.create_timestamp,
             "is_success": self.is_success,
             "message": self.message,
+            "status": self.status
+        }
+
+class SapConfig(db.Model):
+    __tablename__ = "sap_config"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer)
+    account = db.Column(db.String(50))
+    password = db.Column(db.String(100))
+    main_body = db.Column(db.String(100))
+    subject = db.Column(db.String(100))
+    start_date = db.Column(db.String(20))
+    end_date = db.Column(db.String(20))
+    year = db.Column(db.String(10))
+    month = db.Column(db.String(10))
+    create_timestamp = db.Column(db.Integer)
+    change_timestamp = db.Column(db.Integer)
+    status = db.Column(db.Integer, default=1)
+
+    def get_info(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "account": self.account,
+            "password": self.password,
+            "main_body": self.main_body,
+            "subject": self.subject,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "year": self.year,
+            "month": self.month,
+            "create_timestamp": self.create_timestamp,
+            "change_timestamp": self.change_timestamp,
             "status": self.status
         }

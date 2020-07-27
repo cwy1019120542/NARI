@@ -13,7 +13,7 @@ user_blueprint = Blueprint('user', __name__)
 @is_login
 def user(user_id=None):
     if user_id:
-        is_success, return_data = resource_limit([User, user_id, None])
+        is_success, return_data = resource_limit([(User, user_id, None)])
         if not is_success:
             return return_data
         else:
