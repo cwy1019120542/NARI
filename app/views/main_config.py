@@ -124,7 +124,7 @@ def remind(user_id, main_config_id):
     if not receive_config_id:
         return response(False, 403, "无催办配置")
     else:
-        is_sucess, return_data = resource_limit([(User, user_id, None), (MainConfig, main_config_id, "user_id")])
+        is_sucess, return_data = resource_limit([(User, user_id, None), (ReceiveConfig, receive_config_id, "user_id")])
         if not is_success:
             return return_data
         receive_config_query, receive_config = return_data[1:3]

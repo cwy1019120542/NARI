@@ -107,6 +107,7 @@ def receive_mail(app_config_info, main_config_info):
         remind_content = receive_config_info['remind_content']
         remind_ip = receive_config_info['remind_ip']
         remind_port = receive_config_info['remind_port']
+        run_timestamp = time.time()
         generate_log(main_config_id, "info", f"main_config_id {main_config_id} 开始收邮件")
         try:
             pop_obj = poplib.POP3(host)
@@ -191,7 +192,7 @@ def receive_mail(app_config_info, main_config_info):
                                     no_attachment_target_list.remove(target)
                                 if target in error_format_target_list:
                                     error_format_target_list.remove(target)
-                            history_list.append(ReceiveHistory(email=from_email, target=target_group_str, create_timestamp=time.time(), main_config_id=main_config_id, is_success=True, message="success"))
+                            history_list.append(ReceiveHistory(email=from_email, target=target_group_str, create_timestamp=run_timestamp, main_config_id=main_config_id, is_success=True, message="success"))
                     else:
                         for target in target_group:
                             if target in target_list:
@@ -201,14 +202,14 @@ def receive_mail(app_config_info, main_config_info):
         # pop_obj.quit()
         for no_attachment_target in no_attachment_target_list:
             email_group = '|'.join(match_dict[no_attachment_target])
-            history_list.append(ReceiveHistory(email=email_group, target=no_attachment_target, create_timestamp=time.time(), main_config_id=main_config_id, is_success=False, message="缺失附件"))
+            history_list.append(ReceiveHistory(email=email_group, target=no_attachment_target, create_timestamp=run_timestamp, main_config_id=main_config_id, is_success=False, message="缺失附件"))
         for error_format_target in error_format_target_list:
             email_group = '|'.join(match_dict[error_format_target])
-            history_list.append(ReceiveHistory(email=email_group, target=error_format_target, create_timestamp=time.time(), main_config_id=main_config_id, is_success=False, message="附件格式不合法"))
+            history_list.append(ReceiveHistory(email=email_group, target=error_format_target, create_timestamp=run_timestamp, main_config_id=main_config_id, is_success=False, message="附件格式不合法"))
         for target in target_list:
             if target not in no_attachment_target_list:
                 email_group = '|'.join(match_dict[target])
-                history_list.append(ReceiveHistory(email=email_group, target=target, create_timestamp=time.time(), main_config_id=main_config_id, is_success=False, message="未回复"))
+                history_list.append(ReceiveHistory(email=email_group, target=target, create_timestamp=run_timestamp, main_config_id=main_config_id, is_success=False, message="未回复"))
         generate_log(main_config_id, "info", f"main_config_id {main_config_id} 邮件收取完毕")
         if is_remind:
             remind_target_list = []
@@ -398,7 +399,9 @@ def receive_mail(app_config_info, main_config_info):
                 result_excel.save(result_path)
                 result_excel.close()
         session = Session()
+        session.query(ReceiveHistory).filter_by(main_config_id=main_config_id).update({"status": 0})
         session.add_all(history_list)
+        session.query(MainConfig).filter_by(id=main_config_id).update({"run_timestamp": run_timestamp})
         session.commit()
         session.close()
         generate_log(main_config_id, "info", f"main_config_id {main_config_id} 运行成功")

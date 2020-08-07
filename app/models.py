@@ -39,7 +39,7 @@ class MainConfig(db.Model):
         if config_id:
             config = db.session.query(model).filter_by(id=config_id, status=1).first()
             if config:
-                config_info = config.get_info(self.id)
+                config_info = config.get_info()
             else:
                 config_info = {}
         else:
@@ -92,11 +92,10 @@ class SendConfig(db.Model):
     ip = db.Column(db.String(50))
     port = db.Column(db.Integer)
     status = db.Column(db.Integer, default=1)
+    send_excel_name = db.Column(db.String(50))
+    send_excel_field = db.Column(db.Text)
 
-    def get_info(self, main_config_id=None):
-        config_files_dir = current_app.config['CONFIG_FILES_DIR']
-        from .func_tools import get_file_name
-        send_excel = get_file_name(config_files_dir, main_config_id, 'send_excel') if main_config_id else None
+    def get_info(self):
         return {
                 "id": self.id,
                 "user_id": self.user_id,
@@ -113,7 +112,8 @@ class SendConfig(db.Model):
                 "ip": self.ip,
                 "port": self.port,
                 "status": self.status,
-                "send_excel": send_excel
+                "send_excel_name": self.send_excel_name,
+                "send_excel_field": self.send_excel_field
             }
 
 class ReceiveConfig(db.Model):
@@ -136,11 +136,10 @@ class ReceiveConfig(db.Model):
     read_start_timestamp = db.Column(db.Integer)
     read_end_timestamp = db.Column(db.Integer)
     status = db.Column(db.Integer, default=1)
+    template_excel_name = db.Column(db.String(50))
+    template_excel_field = db.Column(db.Text)
 
-    def get_info(self, main_config_id=None):
-        config_files_dir = current_app.config['CONFIG_FILES_DIR']
-        from .func_tools import get_file_name
-        template_excel = get_file_name(config_files_dir, main_config_id, 'template_excel') if main_config_id else None
+    def get_info(self):
         return {
                 "id": self.id,
                 "user_id": self.user_id,
@@ -160,7 +159,8 @@ class ReceiveConfig(db.Model):
                 "read_start_timestamp": self.read_start_timestamp,
                 "read_end_timestamp": self.read_end_timestamp,
                 "status": self.status,
-                "template_excel": template_excel
+                "template_excel_name": self.template_excel_name,
+                "template_excel_field": self.template_excel_field
             }
 
 class UpdateMessage(db.Model):

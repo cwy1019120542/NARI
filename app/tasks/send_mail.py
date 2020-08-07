@@ -40,6 +40,7 @@ def send_mail(app_config_info, main_config_info):
         split_field = send_config_info['split_field']
         ip = send_config_info['ip']
         port = send_config_info['port']
+        run_timestamp = time.time()
         is_success, return_data = get_file_path(config_files_dir, main_config_id, "send_excel")
         if not is_success:
             generate_log(main_config_id, "critical", f"main_config_id {main_config_id} 未上传要发送的邮件")
@@ -152,15 +153,17 @@ def send_mail(app_config_info, main_config_info):
                     try:
                         smtp_send_mail(smtp_obj, sender, email, subject, content, [split_path])
                     except Exception as error:
-                        history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email, create_timestamp=time.time(), is_success=False, message=error))
+                        history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email, create_timestamp=run_timestamp, is_success=False, message=error))
                         generate_log(main_config_id, "error", f"main_config_id {main_config_id} {email} 发送失败 {error}")
                         continue
                     else:
-                        history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email, create_timestamp=time.time(), is_success=True, message="success"))
+                        history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email, create_timestamp=run_timestamp, is_success=True, message="success"))
                         generate_log(main_config_id, "info", f"main_config_id {main_config_id} {email} 发送成功")
         smtp_obj.quit()
         session = Session()
+        session.query(SendHistory).filter_by(main_config_id=main_config_id).update({"status": 0})
         session.add_all(history_list)
+        session.query(MainConfig).filter_by(id=main_config_id).update({"run_timestamp": run_timestamp})
         session.commit()
         session.close()
         generate_log(main_config_id, "info", f"main_config_id {main_config_id}  运行成功")
