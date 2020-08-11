@@ -4,6 +4,7 @@ import uuid
 import smtplib
 import zipfile
 import openpyxl
+import random
 from urllib.parse import quote
 from sqlalchemy import and_
 import pandas
@@ -122,6 +123,29 @@ def resource_limit(resource_group):
             father_id = resource_id
     return True, (model, resource_query, resource, resource_id, link_field, father_id)
 
+def save_file(request_parameter, request_file, is_reset, is_exists, file_dir, add_prefix):
+    if request_parameter not in request_file:
+        return response(False, 400, "参数错误")
+    if is_reset:
+        if is_exists:
+            file_list = os.listdir(file_dir)
+            for file in file_list:
+                os.remove(os.path.join(file_dir, file))
+        if not is_exists:
+            os.makedirs(file_dir)
+    file = request_file.get(request_parameter)
+    file_name = file.filename.strip('"')
+    if not file_name.endswith('.xlsx') and not file_name.endswith('.xls'):
+        return response(False, 400, "文件格式错误，需为xlsx或xls")
+    if add_prefix:
+        uuid_str = str(uuid.uuid1())
+        file_name = '_'.join([uuid_str, file_name])
+    file_path = os.path.join(file_dir, file_name)
+    file.save(file_path)
+    if not file_name.endswith('.xlsx'):
+        to_xlsx(file_path)
+    return response(True, 200, "成功", file_name)
+
 def file_resource(resource_group, file_dir, request_method, request_parameter, request_file):
     is_success, return_data = resource_limit(resource_group)
     if not is_success:
@@ -141,23 +165,7 @@ def file_resource(resource_group, file_dir, request_method, request_parameter, r
         # excel.close()
         return response(True, 200, "成功", file_list[0])
     elif request_method == 'POST' or request_method == 'PUT':
-        if request_parameter not in request_file:
-            return response(False, 400, "参数错误")
-        if is_exists:
-            file_list = os.listdir(file_dir)
-            for file in file_list:
-                os.remove(os.path.join(file_dir, file))
-        if not is_exists:
-            os.makedirs(file_dir)
-        file = request_file.get(request_parameter)
-        file_name = file.filename.strip('"')
-        if not file_name.endswith('.xlsx') and not file_name.endswith('.xls'):
-            return response(False, 400, "文件格式错误，需为xlsx或xls")
-        file_path = os.path.join(file_dir, file_name)
-        file.save(file_path)
-        if not file_name.endswith('.xlsx'):
-            to_xlsx(file_path)
-        return response(True, 200, "成功")
+        return save_file(request_parameter, request_file, True, is_exists, file_dir, False)
     elif request_method == 'DELETE':
         if is_exists:
             file_list = os.listdir(file_dir)

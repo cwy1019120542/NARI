@@ -306,8 +306,8 @@ def receive_mail(app_config_info, main_config_info):
                     check_row_list = [i.value for i in sheet[header_row+1] if i.value]
                     if len(check_row_list) > 2:
                         generate_log(main_config_id, "info", f"模板表有数据")
-                        merge_field_list = [i.strip() for i in merge_field.split('|')]
-                        fill_field_list = [i.strip() for i in fill_field.split('|')]
+                        merge_field_list = [i for i in merge_field.split('|')]
+                        fill_field_list = [i for i in fill_field.split('|')]
                         merge_fill_dict = {}
                         for receive_excel_path in receive_excel_path_list:
                             generate_log(main_config_id, "info", f"聚合 {os.path.split(receive_excel_path)[1]}")
@@ -378,8 +378,8 @@ def receive_mail(app_config_info, main_config_info):
                                 sheet[f"{column_number}{header_row+data_index}"].value = single_data
                     else:
                         merge_field_dict = {}
-                        merge_field_list = [i.strip() for i in merge_field.split('|')]
-                        fill_field_list = [i.strip() for i in fill_field.split('|')]
+                        merge_field_list = [i for i in merge_field.split('|')]
+                        fill_field_list = [i for i in fill_field.split('|')]
                         for row_index, row_data in enumerate(list(sheet.values)[header_row:], start=header_row+1):
                             key_list = []
                             for merge_field in merge_field_list:

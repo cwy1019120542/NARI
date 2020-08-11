@@ -1,7 +1,8 @@
 import os
+import openpyxl
 from urllib.parse import quote
 from flask import Blueprint, current_app, send_from_directory, make_response, request
-from ..func_tools import return_file, db, response, resource_manage
+from ..func_tools import return_file, db, response, resource_manage, save_file
 from ..models import UpdateMessage
 from ..parameter_config import update_message_premeter
 
@@ -25,4 +26,39 @@ def update_message(message_id=None):
             return response(False, 403, "没有权限设置更新日志")
     return resource_manage([(UpdateMessage, message_id, None)], request_method, request_args, request_json, update_message_premeter)
 
+@public_blueprint.route("/excel", methods=["GET", "POST"])
+def excel():
+    temp_files_dir = current_app.config["TEMP_FILES_DIR"]
+    if request.method == "GET":
+        request_args = request.args
+        if "name" not in request_args:
+            return response(False, 400, "参数错误")
+        name = request_args["name"]
+        if not name.endswith(".xlsx"):
+            return response(False, 400, "文件格式不合法")
+        file_path = os.path.join(temp_files_dir, name)
+        if not os.path.exists(file_path):
+            return response(False, 404, "请求的资源不存在")
+        excel = openpyxl.load_workbook(file_path, read_only=True)
+        sheet_name_list = excel.sheetnames
+        header_data = None
+        sheet_name = None
+        header_row = None
+        if "sheet" in request_args and "header_row" in request_args:
+            sheet_name = request_args["sheet"]
+            header_row = request_args["header_row"]
+            if sheet_name not in sheet_name_list:
+                return response(False, 404, "sheet不存在")
+            sheet = excel[sheet_name]
+            header_data = [i.value for i in sheet[header_row] if i.value]
+        excel.close()
+        return response(True, 200, "成功", {
+            "sheet_name_list": sheet_name_list,
+            "header_data": header_data,
+            "sheet_name": sheet_name,
+            "header_row": header_row
+        })
+    elif request.method == "POST":
+        request_file = request.files
+        return save_file("excel", request_file, False, False, temp_files_dir, True)
 

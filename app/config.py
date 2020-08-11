@@ -5,6 +5,7 @@ class BaseConfig:
     BASE_DIR = '/home/cwy'
     CONFIG_FILES_DIR = os.path.join(BASE_DIR, 'config_files')
     STATIC_FILES_DIR = os.path.join(BASE_DIR, 'static_files')
+    TEMP_FILES_DIR = os.path.join(BASE_DIR, 'temp_files')
     SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI', 'mysql://cwy:never1019120542,@localhost:3306/NARI')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     BROKER_URL = os.environ.get('BROKER_URL', 'redis://localhost:6379/0')
