@@ -17,8 +17,8 @@ from ..extention import celery, Session, receive_logger, redis
 from ..func_tools import get_match_dict, get_file_path, response, get_header_row, get_column_number, smtp_send_mail, send_multi_mail, to_xlsx
 
 def generate_log(main_config_id, level, message):
-    getattr(receive_logger, level)(message)
-    redis.rpush(f"{main_config_id}_receive_log", message)
+    getattr(receive_logger, level)(' '.join(["main_config_id", str(main_config_id), message]))
+    redis.rpush(f"{main_config_id}_receive_log", time.strftime("%Y-%m-%d %H:%M:%S ") + message)
 
 def decode_str(s):  # 字符编码转换
     value, charset = decode_header(s)[0]
@@ -79,7 +79,7 @@ def receive_mail(app_config_info, main_config_info):
         main_config_name = main_config_info["config_name"]
         result_excel_name = f"{main_config_name}.xlsx"
         redis.delete(f"{main_config_id}_receive_log")
-        generate_log(main_config_id, "info", f"main_config_id {main_config_id} 收邮件任务开始")
+        generate_log(main_config_id, "info", f"收邮件任务开始")
         config_files_dir = app_config_info['CONFIG_FILES_DIR']
         username = main_config_info['email']
         password = main_config_info['password']
@@ -88,7 +88,7 @@ def receive_mail(app_config_info, main_config_info):
         port = receive_config_info['port']
         is_success, match_dict = get_match_dict(config_files_dir, main_config_id)
         if not is_success:
-            generate_log(main_config_id, "critical", f"main_config_id {main_config_id} 缺失邮箱对应表")
+            generate_log(main_config_id, "critical", f"缺失邮箱对应表")
             return "运行失败,缺失邮箱对应表"
         target_list = list(match_dict.keys())
         new_match_dict = {}
@@ -108,13 +108,13 @@ def receive_mail(app_config_info, main_config_info):
         remind_ip = receive_config_info['remind_ip']
         remind_port = receive_config_info['remind_port']
         run_timestamp = time.time()
-        generate_log(main_config_id, "info", f"main_config_id {main_config_id} 开始收邮件")
+        generate_log(main_config_id, "info", f"开始收邮件")
         try:
             pop_obj = poplib.POP3(host)
             pop_obj.user(username)
             pop_obj.pass_(password)
         except Exception as error:
-            generate_log(main_config_id, "critical", f"main_config_id {main_config_id} 无法登陆收件邮箱 {error}")
+            generate_log(main_config_id, "critical", f"无法登陆收件邮箱 {error}")
             return "运行失败,无法登陆收件邮箱"
         resp, mail_list, octets = pop_obj.list()
         mail_count = len(mail_list)
@@ -122,7 +122,7 @@ def receive_mail(app_config_info, main_config_info):
         no_attachment_list = []
         error_format_target_list = set()
         no_attachment_target_list = set()
-        generate_log(main_config_id, "info", f"main_config_id {main_config_id} mail_count {mail_count}")
+        generate_log(main_config_id, "info", "mail_count {mail_count}")
         file_dir = os.path.join(config_files_dir, str(main_config_id), "receive_excel")
         if os.path.exists(file_dir):
             shutil.rmtree(file_dir)
@@ -132,12 +132,12 @@ def receive_mail(app_config_info, main_config_info):
             try:
                 resp, lines, octets = pop_obj.retr(i)
             except Exception as error:
-                generate_log(main_config_id, "error", f"main_config_id {main_config_id} 邮件解析失败 {error}")
+                generate_log(main_config_id, "error", f"邮件解析失败 {error}")
                 continue
             msg_content = b'\r\n'.join(lines).decode("utf8", "ignore")
             msg = Parser().parsestr(msg_content)
             if not msg['from'] or not msg['subject'] or not msg['date']:
-                generate_log(main_config_id, "info", f"main_config_id {main_config_id} 信息缺失")
+                generate_log(main_config_id, "info", f"信息缺失")
                 continue
             from_email = decode_header(msg['from'])
             from_email = decode_group(from_email)
@@ -148,22 +148,22 @@ def receive_mail(app_config_info, main_config_info):
                 generate_log(main_config_id, "error", f"{from_email} {subject} {msg['date']} 时间无法解析")
                 continue
             if msg_timestamp < read_start_timestamp:
-                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {subject} {msg_timestamp} 小于开始时间")
+                generate_log(main_config_id, "info", f"{from_email} {subject} {msg_timestamp} 小于开始时间")
                 break
             if msg_timestamp > read_end_timestamp:
-                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {subject} {msg_timestamp} 大于结束时间")
+                generate_log(main_config_id, "info", f"{from_email} {subject} {msg_timestamp} 大于结束时间")
                 continue
             if from_email not in new_match_dict:
-                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} 不在配置内的邮箱")
+                generate_log(main_config_id, "info", f"{from_email} 不在配置内的邮箱")
                 continue
             target_group = new_match_dict[from_email]
             target_group_str = "|".join(target_group)
             check_list = [i for i in target_group if i not in target_list]
             if check_list:
-                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {new_match_dict.get(from_email)} 重复处理")
+                generate_log(main_config_id, "info", f"{from_email} {new_match_dict.get(from_email)} 重复处理")
                 continue
             if target_subject in subject:
-                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {subject} {msg_timestamp} 主题符合")
+                generate_log(main_config_id, "info", f"{from_email} {subject} {msg_timestamp} 主题符合")
                 for part in msg.walk():
                     file_name = part.get_filename()
                     if file_name:
@@ -176,9 +176,9 @@ def receive_mail(app_config_info, main_config_info):
                                 for target in target_group:
                                     if target in target_list:
                                         error_format_target_list.add(target)
-                                generate_log(main_config_id, "error", f"main_config_id {main_config_id} filename {filename} 格式不合法")
+                                generate_log(main_config_id, "error", f"filename {filename} 格式不合法")
                                 continue
-                            generate_log(main_config_id, "info", f"main_config_id {main_config_id} filename {filename} 符合条件")
+                            generate_log(main_config_id, "info", f"filename {filename} 符合条件")
                             data = part.get_payload(decode=True)
                             file_path = os.path.join(file_dir, f'{target_group_str}_{filename}')
                             with open(file_path, 'wb') as f:
@@ -198,7 +198,7 @@ def receive_mail(app_config_info, main_config_info):
                             if target in target_list:
                                 no_attachment_target_list.add(target)
             else:
-                generate_log(main_config_id, "info", f"main_config_id {main_config_id} {from_email} {subject} {msg_timestamp} 主题不符合")
+                generate_log(main_config_id, "info", f"{from_email} {subject} {msg_timestamp} 主题不符合")
         # pop_obj.quit()
         for no_attachment_target in no_attachment_target_list:
             email_group = '|'.join(match_dict[no_attachment_target])
@@ -210,7 +210,7 @@ def receive_mail(app_config_info, main_config_info):
             if target not in no_attachment_target_list:
                 email_group = '|'.join(match_dict[target])
                 history_list.append(ReceiveHistory(email=email_group, target=target, create_timestamp=run_timestamp, main_config_id=main_config_id, is_success=False, message="未回复"))
-        generate_log(main_config_id, "info", f"main_config_id {main_config_id} 邮件收取完毕")
+        generate_log(main_config_id, "info", f"邮件收取完毕")
         if is_remind:
             remind_target_list = []
             remind_target_list.extend(no_response_list)
@@ -230,10 +230,10 @@ def receive_mail(app_config_info, main_config_info):
             template_path = return_data
         is_success, receive_excel_path_list = get_file_path(config_files_dir, main_config_id, "receive_excel", True)
         if not is_success or not receive_excel_path_list:
-            generate_log(main_config_id, "error", f"main_config_id {main_config_id} 未收取到指定邮件")
+            generate_log(main_config_id, "error", f"未收取到指定邮件")
         else:
             if not template_path:
-                generate_log(main_config_id, "info", f"main_config_id {main_config_id} 没有提供模板")
+                generate_log(main_config_id, "info", f"没有提供模板")
                 result_list = []
                 receive_excel_check = openpyxl.load_workbook(receive_excel_path_list[0], data_only=True)
                 sheet_name_list = receive_excel_check.sheetnames
@@ -244,7 +244,7 @@ def receive_mail(app_config_info, main_config_info):
                         receive_excel = openpyxl.load_workbook(receive_excel_path, data_only=True)
                         receive_excel_sheet_name_list = receive_excel.sheetnames
                         if sheet_name not in receive_excel_sheet_name_list:
-                            generate_log(main_config_id, "error", f"main_config_id {main_config_id} {receive_excel_path} 没有sheet页 {sheet_name}")
+                            generate_log(main_config_id, "error", f"{receive_excel_path} 没有sheet页 {sheet_name}")
                             continue
                         sheet = receive_excel[sheet_name]
                         header_row = get_header_row(sheet, None)
@@ -258,7 +258,7 @@ def receive_mail(app_config_info, main_config_info):
                         receive_excel = openpyxl.load_workbook(receive_excel_path, data_only=True)
                         receive_excel_sheet_name_list = receive_excel.sheetnames
                         if sheet_name not in receive_excel_sheet_name_list:
-                            generate_log(main_config_id, "error", f"main_config_id {main_config_id} {receive_excel_path} 没有sheet页 {sheet_name}")
+                            generate_log(main_config_id, "error", f"{receive_excel_path} 没有sheet页 {sheet_name}")
                             continue
                         sheet = receive_excel[sheet_name]
                         header_row = get_header_row(sheet, None)
@@ -270,7 +270,7 @@ def receive_mail(app_config_info, main_config_info):
                         all_sheet_data.extend(list(zip(*column_data_list)))
                         receive_excel.close()
                     result_list.append(all_sheet_data)
-                    generate_log(main_config_id, "info", f"main_config_id {main_config_id} 表格数据生成完毕")
+                    generate_log(main_config_id, "info", f"表格数据生成完毕")
                 work_book = openpyxl.Workbook(result_excel_name)
                 result_dir = os.path.join(config_files_dir, str(main_config_id), "result_excel")
                 if not os.path.exists(result_dir):
@@ -283,7 +283,7 @@ def receive_mail(app_config_info, main_config_info):
                 work_book.save(result_path)
                 work_book.close()
             else:
-                generate_log(main_config_id, "info", f"main_config_id {main_config_id} 提供模板表")
+                generate_log(main_config_id, "info", f"提供模板表")
                 result_dir = os.path.join(config_files_dir, str(main_config_id), "result_excel")
                 if not os.path.exists(result_dir):
                     os.makedirs(result_dir)
@@ -297,27 +297,27 @@ def receive_mail(app_config_info, main_config_info):
                         sheet = result_excel[result_excel_sheet_name_list[0]]
                     else:
                         if sheet_name not in result_excel_sheet_name_list:
-                            generate_log(main_config_id, "error", f"main_config_id {main_config_id} result_excel 没有sheet页 {sheet_name}")
+                            generate_log(main_config_id, "error", f"result_excel 没有sheet页 {sheet_name}")
                             continue
                         else:
                             sheet = result_excel[sheet_name]
                     header_row = get_header_row(sheet, header_row)
-                    field_data_list = [i.value for i in sheet[header_row]]
+                    field_data_list = [i.value.strip() for i in sheet[header_row]]
                     check_row_list = [i.value for i in sheet[header_row+1] if i.value]
                     if len(check_row_list) > 2:
-                        generate_log(main_config_id, "info", f"main_config_id {main_config_id} 模板表有数据")
-                        merge_field_list = merge_field.split('|')
-                        fill_field_list = fill_field.split('|')
+                        generate_log(main_config_id, "info", f"模板表有数据")
+                        merge_field_list = [i.strip() for i in merge_field.split('|')]
+                        fill_field_list = [i.strip() for i in fill_field.split('|')]
                         merge_fill_dict = {}
                         for receive_excel_path in receive_excel_path_list:
-                            generate_log(main_config_id, "info", f"main_config_id {main_config_id} 聚合 {os.path.split(receive_excel_path)[1]}")
+                            generate_log(main_config_id, "info", f"聚合 {os.path.split(receive_excel_path)[1]}")
                             receive_excel = openpyxl.load_workbook(receive_excel_path, data_only=True)
                             receive_excel_sheet_name_list = receive_excel.sheetnames
                             if len(sheet_info) == 1:
                                 receive_sheet = receive_excel[receive_excel_sheet_name_list[0]]
                             else:
                                 if sheet_name not in receive_excel_sheet_name_list:
-                                    generate_log(main_config_id, "error", f"main_config_id {main_config_id} receive_excel {receive_excel_path} 没有sheet页 {sheet_name}")
+                                    generate_log(main_config_id, "error", f"receive_excel {receive_excel_path} 没有sheet页 {sheet_name}")
                                     continue
                                 else:
                                     receive_sheet = receive_excel[sheet_name]
@@ -335,26 +335,26 @@ def receive_mail(app_config_info, main_config_info):
                             receive_excel.close()
                         result_list.append(merge_fill_dict)
                     else:
-                        generate_log(main_config_id, "info", f"main_config_id {main_config_id} 模板表无数据")
+                        generate_log(main_config_id, "info", f"模板表无数据")
                         all_sheet_data = []
                         for receive_excel_path in receive_excel_path_list:
-                            generate_log(main_config_id, "info", f"main_config_id {main_config_id} 聚合 {os.path.split(receive_excel_path)[1]}")
+                            generate_log(main_config_id, "info", f"聚合 {os.path.split(receive_excel_path)[1]}")
                             receive_excel = openpyxl.load_workbook(receive_excel_path, data_only=True)
                             receive_excel_sheet_name_list = receive_excel.sheetnames
                             if len(sheet_info) == 1:
                                 receive_sheet = receive_excel[receive_excel_sheet_name_list[0]]
                             else:
                                 if sheet_name not in receive_excel_sheet_name_list:
-                                    generate_log(main_config_id, "error", f"main_config_id {main_config_id} receive_excel {receive_excel_path} 没有sheet页 {sheet_name}")
+                                    generate_log(main_config_id, "error", f"receive_excel {receive_excel_path} 没有sheet页 {sheet_name}")
                                     continue
                                 else:
                                     receive_sheet = receive_excel[sheet_name]
                             column_data_list = get_column_data_list(receive_sheet, field_data_list, header_row)
-                            all_row_data = [i for i in zip(*column_data_list) if i.count(None) != len(i)]
+                            all_row_data = [i for i in zip(*column_data_list) if len(i) - i.count(None) > 2]
                             all_sheet_data.extend(all_row_data)
                             receive_excel.close()
                         result_list.append(all_sheet_data)
-                generate_log(main_config_id, "info", f"main_config_id {main_config_id} 数据聚合完毕")
+                generate_log(main_config_id, "info", f"数据聚合完毕")
                 result_excel.close()
                 for result_index, result in enumerate(result_list):
                     sheet_info[result_index].append(result)
@@ -364,12 +364,12 @@ def receive_mail(app_config_info, main_config_info):
                         sheet = result_excel[result_excel_sheet_name_list[0]]
                     else:
                         if sheet_name not in result_excel_sheet_name_list:
-                            generate_log(main_config_id, "error", f"main_config_id {main_config_id} result_excel 没有sheet页 {sheet_name}")
+                            generate_log(main_config_id, "error", f"result_excel 没有sheet页 {sheet_name}")
                             continue
                         else:
                             sheet = result_excel[sheet_name]
                     header_row = get_header_row(sheet, header_row)
-                    field_data_list = [i.value for i in sheet[header_row]]
+                    field_data_list = [i.value.strip() for i in sheet[header_row]]
                     column_number_list = get_column_number()
                     if isinstance(result, list):
                         for data_index, data in enumerate(result, start=1):
@@ -378,8 +378,8 @@ def receive_mail(app_config_info, main_config_info):
                                 sheet[f"{column_number}{header_row+data_index}"].value = single_data
                     else:
                         merge_field_dict = {}
-                        merge_field_list = merge_field.split('|')
-                        fill_field_list = fill_field.split('|')
+                        merge_field_list = [i.strip() for i in merge_field.split('|')]
+                        fill_field_list = [i.strip() for i in fill_field.split('|')]
                         for row_index, row_data in enumerate(list(sheet.values)[header_row:], start=header_row+1):
                             key_list = []
                             for merge_field in merge_field_list:
@@ -404,8 +404,8 @@ def receive_mail(app_config_info, main_config_info):
         session.query(MainConfig).filter_by(id=main_config_id).update({"run_timestamp": run_timestamp})
         session.commit()
         session.close()
-        generate_log(main_config_id, "info", f"main_config_id {main_config_id} 运行成功")
+        generate_log(main_config_id, "info", f"运行成功")
         return "运行成功"
     except Exception as error:
-        generate_log(main_config_id, "critical", f"main_config_id {main_config_id} 运行失败 {print_exc()}")
+        generate_log(main_config_id, "critical", f"运行失败 {print_exc()}")
         return "运行失败,未知错误"

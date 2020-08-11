@@ -15,8 +15,8 @@ def clean_file_name(file_name):
     return new_file_name
 
 def generate_log(main_config_id, level, message):
-    getattr(send_logger, level)(message)
-    redis.rpush(f"{main_config_id}_send_log", message)
+    getattr(send_logger, level)(' '.join(["main_config_id", str(main_config_id), message]))
+    redis.rpush(f"{main_config_id}_send_log", time.strftime("%Y-%m-%d %H:%M:%S ") + message)
 
 @celery.task(track_started=True)
 def send_mail(app_config_info, main_config_info):

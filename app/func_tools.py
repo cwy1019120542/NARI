@@ -57,6 +57,11 @@ def parameter_check(request_data, parameter_group_list, is_all=True):
             else:
                 continue
         if not isinstance(value, parameter_type):
+            if parameter_type == bool:
+                try:
+                    value = bool(int(value))
+                except:
+                    return False, response(False, 400, "数据格式错误")
             try:
                 value = parameter_type(value)
             except:
@@ -83,14 +88,11 @@ def page_filter(model, clean_data, fuzzy_field):
         "limit": limit,
         "offset": offset,
     }
-    if not clean_data:
-        data_list = db.session.query(model).limit(limit).offset(offset).all()
-    else:
-        filter_query_list = and_(*[getattr(model, i)==clean_data[i] if i not in fuzzy_field else getattr(model, i).contains(clean_data[i]) for i in clean_data.keys()])
-        all_data_query = db.session.query(model).filter(filter_query_list)
-        data_count = all_data_query.count()
-        data_list = all_data_query.limit(limit).offset(offset).all()
-        page_info["count"] = data_count
+    filter_query_list = and_(*[getattr(model, i)==clean_data[i] if i not in fuzzy_field else getattr(model, i).contains(clean_data[i]) for i in clean_data.keys()])
+    all_data_query = db.session.query(model).filter(filter_query_list)
+    data_count = all_data_query.count()
+    data_list = all_data_query.order_by(-model.change_timestamp).limit(limit).offset(offset).all()
+    page_info["count"] = data_count
     return data_list, page_info
 
 def captcha_check(email, captcha):

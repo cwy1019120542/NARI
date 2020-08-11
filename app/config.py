@@ -10,6 +10,7 @@ class BaseConfig:
     BROKER_URL = os.environ.get('BROKER_URL', 'redis://localhost:6379/0')
     CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
     CELERYD_CONCURRENCY = 20
+    # SQLALCHEMY_ECHO = True
     CELERY_TIMEZONE = 'Asia/Shanghai'
     CELERY_ACCEPT_CONTENT = ['pickle', 'json', 'msgpack', 'yaml']
     CELERY_IMPORTS = (
