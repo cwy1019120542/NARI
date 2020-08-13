@@ -97,6 +97,7 @@ class SendConfig(db.Model):
     port = db.Column(db.Integer)
     status = db.Column(db.Integer, default=1)
     send_excel_name = db.Column(db.String(50))
+    send_excel_uuid_name = db.Column(db.String(100))
     send_excel_field = db.Column(db.Text)
 
     def get_info(self):
@@ -117,6 +118,7 @@ class SendConfig(db.Model):
                 "port": self.port,
                 "status": self.status,
                 "send_excel_name": self.send_excel_name,
+                "send_excel_uuid_name": self.send_excel_uuid_name,
                 "send_excel_field": self.send_excel_field
             }
 
@@ -141,6 +143,7 @@ class ReceiveConfig(db.Model):
     read_end_timestamp = db.Column(db.Integer)
     status = db.Column(db.Integer, default=1)
     template_excel_name = db.Column(db.String(50))
+    template_excel_uuid_name = db.Column(db.String(100))
     template_excel_field = db.Column(db.Text)
 
     def get_info(self):
@@ -164,6 +167,7 @@ class ReceiveConfig(db.Model):
                 "read_end_timestamp": self.read_end_timestamp,
                 "status": self.status,
                 "template_excel_name": self.template_excel_name,
+                "template_excel_uuid_name": self.template_excel_uuid_name,
                 "template_excel_field": self.template_excel_field
             }
 

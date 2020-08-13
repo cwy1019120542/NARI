@@ -12,14 +12,14 @@ user_parameter = {
 
 send_config_parameter = {
     "POST": [('subject', str, False, 50), ('content', str, False, 10000), ('sheet', str, False, 10000), ('field_row', str, False, 50), ('split_field', str, False, 50), ("is_split", str, False, 50), ('is_timing', bool, False, 10),
-                         ('start_timestamp', int, True, 11), ('ip', str, False, 50), ('port', int, False, 11), ("send_excel_name", str, True, 50), ("send_excel_field", str, True, 10000)],
+                         ('start_timestamp', int, True, 11), ('ip', str, False, 50), ('port', int, False, 11), ("send_excel_name", str, True, 50), ("send_excel_uuid_name", str, True, 100), ("send_excel_field", str, True, 10000)],
     "GET":[('id', int, False, 11), ('offset', int, False, 11), ('limit', int, False, 11), ('status', int, False, 11)],
     "fuzzy_field": []
 }
 receive_config_parameter = {
     "POST": [('subject', str, False, 50), ('sheet_info', str, False, 10000), ('is_timing', bool, False, 10),
                          ('start_timestamp', int, True, 11), ('ip', str, False, 50), ('port', int, False, 11), ('is_remind', bool, False, 10), ('remind_subject', str, False, 50),
-                            ('remind_ip', str, False, 50), ('remind_port', int, False, 11), ('remind_content', str, False, 10000), ('read_start_timestamp', int, False, 11), ('read_end_timestamp', int, False, 11), ("template_excel_name", str, True, 50), ("template_excel_field", str, True, 10000)],
+                            ('remind_ip', str, False, 50), ('remind_port', int, False, 11), ('remind_content', str, False, 10000), ('read_start_timestamp', int, False, 11), ('read_end_timestamp', int, False, 11), ("template_excel_name", str, True, 50), ("template_excel_uuid_name", str, True, 100), ("template_excel_field", str, True, 10000)],
     "GET": [('id', int, False, 11), ('offset', int, False, 11), ('limit', int, False, 11), ('status', int, False, 11)],
     "fuzzy_field": []
 }

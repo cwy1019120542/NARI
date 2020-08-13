@@ -93,7 +93,7 @@ def page_filter(model, clean_data, fuzzy_field):
     filter_query_list = and_(*[getattr(model, i)==clean_data[i] if i not in fuzzy_field else getattr(model, i).contains(clean_data[i]) for i in clean_data.keys()])
     all_data_query = db.session.query(model).filter(filter_query_list)
     data_count = all_data_query.count()
-    data_list = all_data_query.order_by(-model.change_timestamp).limit(limit).offset(offset).all()
+    data_list = all_data_query.order_by(-model.change_timestamp, -model.id).limit(limit).offset(offset).all()
     page_info["count"] = data_count
     return data_list, page_info
 
