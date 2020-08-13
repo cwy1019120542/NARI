@@ -9,6 +9,8 @@ class User(db.Model):
     password = db.Column(db.String(100))
     name =  db.Column(db.String(10))
     department =  db.Column(db.String(10))
+    create_timestamp = db.Column(db.Integer)
+    change_timestamp = db.Column(db.Integer)
     status = db.Column(db.Integer, default=1)
 
     def get_info(self):
@@ -17,7 +19,9 @@ class User(db.Model):
             "email": self.email,
             "name": self.name,
             "department": self.department,
-            "status": self.status
+            "status": self.status,
+            "create_timestamp": self.create_timestamp,
+            "change_timestamp": self.change_timestamp
         }
 
 class MainConfig(db.Model):
@@ -237,8 +241,6 @@ class SapConfig(db.Model):
     subject = db.Column(db.String(100))
     start_date = db.Column(db.String(20))
     end_date = db.Column(db.String(20))
-    year = db.Column(db.String(10))
-    month = db.Column(db.String(10))
     create_timestamp = db.Column(db.Integer)
     change_timestamp = db.Column(db.Integer)
     status = db.Column(db.Integer, default=1)
@@ -253,8 +255,6 @@ class SapConfig(db.Model):
             "subject": self.subject,
             "start_date": self.start_date,
             "end_date": self.end_date,
-            "year": self.year,
-            "month": self.month,
             "create_timestamp": self.create_timestamp,
             "change_timestamp": self.change_timestamp,
             "status": self.status

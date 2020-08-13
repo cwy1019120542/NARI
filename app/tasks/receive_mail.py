@@ -14,6 +14,7 @@ from email.parser import Parser
 from email.header import decode_header
 from email.utils import parseaddr
 from ..extention import celery, Session, receive_logger, redis
+from ..parameter_config import accept_file_type
 from ..func_tools import get_match_dict, get_file_path, response, get_header_row, get_column_number, smtp_send_mail, send_multi_mail, to_xlsx
 
 def generate_log(main_config_id, level, message):
@@ -172,7 +173,7 @@ def receive_mail(app_config_info, main_config_info):
                         filename = dh[0][0]
                         if dh[0][1]:
                             filename = decode_str(str(filename, dh[0][1]))
-                            if not filename.endswith('.xlsx') and not filename.endswith('.xls'):
+                            if not filename.endswith(accept_file_type):
                                 for target in target_group:
                                     if target in target_list:
                                         error_format_target_list.add(target)

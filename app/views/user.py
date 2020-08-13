@@ -1,5 +1,6 @@
 import random
 import smtplib
+import time
 from flask import Blueprint, request, current_app, session
 from ..extention import bcrypt, db, redis
 from ..parameter_config import user_parameter
@@ -9,7 +10,7 @@ from ..models import User
 user_blueprint = Blueprint('user', __name__)
 
 @user_blueprint.route('/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
-@user_blueprint.route('', methods=['POST', 'GET'])
+@user_blueprint.route('', methods=['POST'])
 @is_login
 def user(user_id=None):
     if user_id:
@@ -45,6 +46,9 @@ def user(user_id=None):
         password = clean_data['password']
         password_hash = bcrypt.generate_password_hash(password)
         clean_data['password'] = password_hash
+        now_timestamp = int(time.time())
+        clean_data['create_timestamp'] = now_timestamp
+        clean_data['change_timestamp'] = now_timestamp
         new_user = User(**clean_data)
         db.session.add(new_user)
         db.session.commit()
@@ -59,6 +63,8 @@ def user(user_id=None):
             password = clean_data['password']
             password_hash = bcrypt.generate_password_hash(password)
             clean_data['password'] = password_hash
+        now_timestamp = int(time.time())
+        clean_data['change_timestamp'] = now_timestamp
         user_query.update(clean_data)
         db.session.commit()
         result = db.session.query(User).get(user_id).get_info()

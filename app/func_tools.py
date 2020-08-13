@@ -17,6 +17,7 @@ from flask import session, jsonify, send_from_directory, make_response
 from functools import wraps
 from .extention import db, redis, celery
 from .models import User, MainConfig
+from .parameter_config import accept_file_type
 
 
 def to_xlsx(file_path):
@@ -135,11 +136,10 @@ def save_file(request_parameter, request_file, is_reset, is_exists, file_dir, ad
             os.makedirs(file_dir)
     file = request_file.get(request_parameter)
     file_name = file.filename.strip('"')
-    if not file_name.endswith('.xlsx') and not file_name.endswith('.xls'):
-        return response(False, 400, "文件格式错误，需为xlsx或xls")
+    if not file_name.endswith(accept_file_type):
+        return response(False, 400, "文件格式错误")
     if add_prefix:
-        uuid_str = str(uuid.uuid1())
-        file_name = '_'.join([uuid_str, file_name])
+        file_name = f"{str(uuid.uuid1())}.xlsx"
     file_path = os.path.join(file_dir, file_name)
     file.save(file_path)
     if not file_name.endswith('.xlsx'):
@@ -204,8 +204,9 @@ def resource_manage(resource_group, request_method, request_args, request_json, 
             return clean_data
         if father_id:
             clean_data[link_field] = father_id
-        clean_data['create_timestamp'] = int(time.time())
-        clean_data['change_timestamp'] = int(time.time())
+        now_timestamp = int(time.time())
+        clean_data['create_timestamp'] = now_timestamp
+        clean_data['change_timestamp'] = now_timestamp
         new_resource = model(**clean_data)
         db.session.add(new_resource)
         db.session.commit()

@@ -4,7 +4,7 @@ from urllib.parse import quote
 from flask import Blueprint, current_app, send_from_directory, make_response, request
 from ..func_tools import return_file, db, response, resource_manage, save_file
 from ..models import UpdateMessage
-from ..parameter_config import update_message_premeter
+from ..parameter_config import update_message_premeter, accept_file_type
 
 public_blueprint = Blueprint('public', __name__)
 
@@ -34,7 +34,7 @@ def excel():
         if "name" not in request_args:
             return response(False, 400, "参数错误")
         name = request_args["name"]
-        if not name.endswith(".xlsx"):
+        if not name.endswith(accept_file_type):
             return response(False, 400, "文件格式不合法")
         file_path = os.path.join(temp_files_dir, name)
         if not os.path.exists(file_path):
