@@ -7,6 +7,7 @@ from .views.main_config import main_config_blueprint
 from .views.send_config import send_config_blueprint
 from .views.receive_config import receive_config_blueprint
 from .views.sap_config import sap_config_blueprint
+from .views.report import report_blueprint
 from .views.public import public_blueprint
 
 def create_app(config_name):
@@ -19,5 +20,6 @@ def create_app(config_name):
     app.register_blueprint(receive_config_blueprint, url_prefix='/nari/user/<int:user_id>/receive_config')
     app.register_blueprint(public_blueprint, url_prefix='/nari')
     app.register_blueprint(sap_config_blueprint, url_prefix='/nari/user/<int:user_id>/sap_config')
+    # app.register_blueprint(sap_config_blueprint, url_prefix='/nari/user/<int:user_id>/report')
     init_extention(app)
     return app

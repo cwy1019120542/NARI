@@ -138,13 +138,17 @@ def save_file(request_parameter, request_file, is_reset, is_exists, file_dir, ad
     file_name = file.filename.strip('"')
     if not file_name.endswith(accept_file_type):
         return response(False, 400, "文件格式错误")
+    return_file_name = f"{file_name.split('.')[0]}.xlsx"
     if add_prefix:
-        file_name = f"{str(uuid.uuid1())}.xlsx"
+        file_suffix = file_name.split(".")[1]
+        uuid_str = str(uuid.uuid1())
+        file_name = f"{uuid_str}.{file_suffix}"
+        return_file_name = f"{uuid_str}.xlsx"
     file_path = os.path.join(file_dir, file_name)
     file.save(file_path)
     if not file_name.endswith('.xlsx'):
         to_xlsx(file_path)
-    return response(True, 200, "成功", file_name)
+    return response(True, 200, "成功", return_file_name)
 
 def file_resource(resource_group, file_dir, request_method, request_parameter, request_file):
     is_success, return_data = resource_limit(resource_group)
@@ -449,7 +453,6 @@ def start_task(app_config, main_config_info, function_name, task_function):
         return True, True
     else:
         return False, response(False, 400, "配置缺失")
-
 
 
 
