@@ -6,8 +6,8 @@ from ..extention import redis
 
 sap_config_blueprint = Blueprint('sap_config', __name__)
 
-@sap_config_blueprint.route("/", methods=["GET", "POST", "PUT"])
-@sap_config_blueprint.route("/<int:config_id>", methods=["GET"])
+@sap_config_blueprint.route("/", methods=["GET", "POST"])
+@sap_config_blueprint.route("/<int:config_id>", methods=["GET", "PUT"])
 @is_login
 def sap_config(user_id, config_id=None):
     request_method = request.method

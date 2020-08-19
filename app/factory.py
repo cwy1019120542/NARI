@@ -20,6 +20,6 @@ def create_app(config_name):
     app.register_blueprint(receive_config_blueprint, url_prefix='/nari/user/<int:user_id>/receive_config')
     app.register_blueprint(public_blueprint, url_prefix='/nari')
     app.register_blueprint(sap_config_blueprint, url_prefix='/nari/user/<int:user_id>/sap_config')
-    # app.register_blueprint(sap_config_blueprint, url_prefix='/nari/user/<int:user_id>/report')
+    app.register_blueprint(report_blueprint, url_prefix='/nari/user/<int:user_id>/report')
     init_extention(app)
     return app

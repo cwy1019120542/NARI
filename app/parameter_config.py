@@ -46,3 +46,8 @@ sap_log_parameter = {
     "POST": [("log", str, False, 100)]
 }
 accept_file_type = (".xlsx", ".xls", ".XLSX", ".XLS")
+
+check_file_dict = {
+    "pre_excel": "预开票",
+    "suf_excel": "滞后开票"
+}

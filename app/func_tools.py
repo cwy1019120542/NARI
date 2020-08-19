@@ -5,6 +5,7 @@ import smtplib
 import zipfile
 import openpyxl
 import random
+import shutil
 from urllib.parse import quote
 from sqlalchemy import and_
 import pandas
@@ -124,31 +125,31 @@ def resource_limit(resource_group):
             father_id = resource_id
     return True, (model, resource_query, resource, resource_id, link_field, father_id)
 
-def save_file(request_parameter, request_file, is_reset, is_exists, file_dir, add_prefix):
+def save_file(request_parameter, request_file, is_reset, file_dir, new_file_name=None):
     if request_parameter not in request_file:
-        return response(False, 400, "参数错误")
+        return False, response(False, 400, "参数错误")
     if is_reset:
-        if is_exists:
-            file_list = os.listdir(file_dir)
-            for file in file_list:
-                os.remove(os.path.join(file_dir, file))
-        if not is_exists:
-            os.makedirs(file_dir)
+        if os.path.exists(file_dir):
+            shutil.rmtree(file_dir)
+        os.makedirs(file_dir)
     file = request_file.get(request_parameter)
     file_name = file.filename.strip('"')
     if not file_name.endswith(accept_file_type):
-        return response(False, 400, "文件格式错误")
-    return_file_name = f"{file_name.split('.')[0]}.xlsx"
-    if add_prefix:
-        file_suffix = file_name.split(".")[1]
-        uuid_str = str(uuid.uuid1())
-        file_name = f"{uuid_str}.{file_suffix}"
-        return_file_name = f"{uuid_str}.xlsx"
+        return False, response(False, 400, "文件格式错误")
+    file_prefix, file_suffix = file_name.split(".")
+    return_file_name = f"{file_prefix}.xlsx"
+    if new_file_name:
+        file_name = f"{new_file_name}.{file_suffix}"
+        file_prefix = new_file_name
+        return_file_name = f"{new_file_name}.xlsx"
     file_path = os.path.join(file_dir, file_name)
     file.save(file_path)
-    if not file_name.endswith('.xlsx'):
+    if not file_name.endswith(('.xlsx', '.XLSX')):
         to_xlsx(file_path)
-    return response(True, 200, "成功", return_file_name)
+    if file_name.endswith('.XLSX'):
+        change_file_name = f"{file_prefix}.xlsx"
+        os.rename(file_path, os.path.join(file_dir, change_file_name))
+    return True, response(True, 200, "成功", return_file_name)
 
 def file_resource(resource_group, file_dir, request_method, request_parameter, request_file):
     is_success, return_data = resource_limit(resource_group)
@@ -169,7 +170,7 @@ def file_resource(resource_group, file_dir, request_method, request_parameter, r
         # excel.close()
         return response(True, 200, "成功", file_list[0])
     elif request_method == 'POST' or request_method == 'PUT':
-        return save_file(request_parameter, request_file, True, is_exists, file_dir, False)
+        return save_file(request_parameter, request_file, True, file_dir)[1]
     elif request_method == 'DELETE':
         if is_exists:
             file_list = os.listdir(file_dir)
@@ -270,12 +271,12 @@ def get_active_task():
             scheduled_task_dict[(task_name, sort_kwargs)] = task_id
     return active_task_dict, scheduled_task_dict
 
-def get_run_config(user_id):
+def get_run_config(user_id, target_key='main_config_id'):
     active_task, scheduled_task = get_active_task()
     active_task_key = list(active_task.keys())
-    active_task_id_list = [int(i['main_config_id']) for i in [dict(j[1]) for j in active_task_key] if i.get('user_id') == str(user_id) and i.get('main_config_id')]
+    active_task_id_list = [int(i[target_key]) for i in [dict(j[1]) for j in active_task_key] if i.get('user_id') == str(user_id) and i.get(target_key)]
     scheduled_task_key = list(scheduled_task.keys())
-    scheduled_task_id_list = [int(i['main_config_id']) for i in [dict(j[1]) for j in scheduled_task_key] if i.get('user_id') == str(user_id) and i.get('main_config_id')]
+    scheduled_task_id_list = [int(i[target_key]) for i in [dict(j[1]) for j in scheduled_task_key] if i.get('user_id') == str(user_id) and i.get(target_key)]
     return active_task_id_list, scheduled_task_id_list
 
 def is_active_task(task_name, **kwargs):

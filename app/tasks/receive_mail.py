@@ -303,7 +303,7 @@ def receive_mail(app_config_info, main_config_info):
                         else:
                             sheet = result_excel[sheet_name]
                     header_row = get_header_row(sheet, header_row)
-                    field_data_list = [i.value.strip() for i in sheet[header_row]]
+                    field_data_list = [i.value for i in sheet[header_row]]
                     check_row_list = [i.value for i in sheet[header_row+1] if i.value]
                     if len(check_row_list) > 2:
                         generate_log(main_config_id, "info", f"模板表有数据")
@@ -351,7 +351,13 @@ def receive_mail(app_config_info, main_config_info):
                                 else:
                                     receive_sheet = receive_excel[sheet_name]
                             column_data_list = get_column_data_list(receive_sheet, field_data_list, header_row)
-                            all_row_data = [i for i in zip(*column_data_list) if len(i) - i.count(None) > 2]
+                            all_row_data = []
+                            for row_data in zip(*column_data_list):
+                                if len(row_data) - row_data.count(None) < 3:
+                                    filter_row_data = [i for i in row_data if i and len(str(i)) > 6]
+                                    if not filter_row_data:
+                                        continue
+                                all_row_data.append(row_data)
                             all_sheet_data.extend(all_row_data)
                             receive_excel.close()
                         result_list.append(all_sheet_data)
