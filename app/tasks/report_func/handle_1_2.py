@@ -1,6 +1,6 @@
 import os
 import openpyxl
-from .public_func import generate_dict, generate_key_value, handle_num, replace_company, split_total_inner
+from .public_func import generate_dict, generate_key_value, handle_num, replace_company, generate_percent_rate, generate_change_info
 from app.parameter_config import check_file_dict
 
 def compare_with_last(data_dict, file_name, last_file_dir, result_amount_field):
@@ -16,9 +16,7 @@ def compare_with_last(data_dict, file_name, last_file_dir, result_amount_field):
         last_data_dict = {}
     for company, amount in data_dict.items():
         last_amount = float(last_data_dict.get(company, 0))
-        handle_amount = handle_num(amount)
-        change_amount = handle_amount - last_amount
-        rate = f"{round(change_amount / last_amount, 2)}%" if last_amount else None
+        handle_amount, change_amount, rate = generate_change_info(amount, last_amount)
         result_list.append([company, handle_amount, last_amount, change_amount, rate])
     return result_list
 
@@ -61,7 +59,7 @@ def generate_file(result_list, result_dir, file_name, key_word):
         sum_last_amount += result[2]
         sum_change_amount += result[3]
         sheet.append([result_index] + result)
-    sum_rate = f"{round(sum_change_amount / sum_last_amount, 2)}%" if sum_last_amount else None
+    sum_rate = generate_percent_rate(sum_change_amount, sum_last_amount)
     sum_list = [None, "合计", sum_amount, sum_last_amount, sum_change_amount, sum_rate]
     sheet.append(sum_list)
     workbook.save(file_path)

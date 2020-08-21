@@ -1,6 +1,6 @@
 import os
 import openpyxl
-from .public_func import generate_key_value, replace_company, split_total_inner, generate_dict, handle_num, generate_change_info
+from .public_func import generate_key_value, replace_company, generate_dict, handle_num, generate_percent_rate, generate_change_info
 from app.parameter_config import check_file_dict
 
 def compare_with_last(data_dict, file_name, last_file_dir, result_amount_field):
@@ -51,7 +51,7 @@ def generate_result_list(file_path, key_word, code_dict, total_file_name, inner_
 
 def generate_file(result_list, result_dir, file_name, key_word):
     file_path = os.path.join(result_dir, file_name)
-    result_list.sort(key=lambda x:x[3], reverse=True)
+    result_list.sort(key=lambda x:x[1], reverse=True)
     workbook = openpyxl.Workbook()
     sheet = workbook[workbook.sheetnames[0]]
     field_list = ["序号", "公司名称", f"本月{key_word}开票金额", f"年初{key_word}开票金额", "总额较年初增减额", "总额较年初变化幅度(%)", "挂账1年以上金额", "年初挂账1年以上金额", "挂账1年以上较年初增减额", "挂账1年以上较年初变化幅度(%)"]
@@ -70,8 +70,8 @@ def generate_file(result_list, result_dir, file_name, key_word):
         sum_last_year_amount += result[6]
         sum_year_change_amount += result[7]
         sheet.append([result_index] + result)
-    sum_rate = f"{round(sum_change_amount / sum_last_amount, 2)}%" if sum_last_amount else None
-    sum_year_rate = f"{round(sum_year_change_amount / sum_last_year_amount, 2)}%" if sum_last_year_amount else None
+    sum_rate = generate_percent_rate(sum_change_amount, sum_last_amount)
+    sum_year_rate = generate_percent_rate(sum_year_change_amount, sum_last_year_amount)
     sum_list = [None, "合计", sum_amount, sum_last_amount, sum_change_amount, sum_rate, sum_year_amount, sum_last_year_amount, sum_year_change_amount, sum_year_rate]
     sheet.append(sum_list)
     workbook.save(file_path)

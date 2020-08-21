@@ -12,7 +12,7 @@ def generate_report(file_dir, code_file_path, last_file_dir, last_year_file_dir)
     code_dict = generate_dict(code_sheet, 1, ["利润中心"], ["分公司及事业部名称"])
     code_excel.close()
     handle_1_2(file_dir, last_file_dir, code_dict)
-    handle_3_4(file_dir, last_file_dir, code_dict)
+    handle_3_4(file_dir, last_year_file_dir, code_dict)
 
 
 

@@ -1,7 +1,9 @@
-from flask import Blueprint, request
+import os
+import shutil
+from flask import Blueprint, request, current_app
 from ..models import SapConfig, User
 from ..parameter_config import sap_config_parameter, sap_log_parameter
-from ..func_tools import resource_manage, is_login, response, resource_limit, parameter_check
+from ..func_tools import resource_manage, is_login, response, resource_limit, parameter_check, return_file, file_resource
 from ..extention import redis
 
 sap_config_blueprint = Blueprint('sap_config', __name__)
@@ -37,3 +39,21 @@ def log(user_id, config_id):
     elif request.method == "DELETE":
         redis.delete(key)
         return response(True, 204, "成功")
+
+@sap_config_blueprint.route("/<int:config_id>/main_file", methods=["GET", "POST"])
+@is_login
+def main_file(user_id, config_id):
+    config = current_app.config
+    sap_files_dir = os.path.join(config["SAP_FILES_DIR"], str(user_id), "main")
+    request_method = request.method
+    request_file = request.files
+    return file_resource([(User, user_id, None), (SapConfig, config_id, "user_id")], sap_files_dir, request_method, "file", request_file, file_type="*")
+
+@sap_config_blueprint.route("/<int:config_id>/other_file", methods=["GET", "POST"])
+@is_login
+def other_file(user_id, config_id):
+    config = current_app.config
+    sap_files_dir = os.path.join(config["SAP_FILES_DIR"], str(user_id), "other")
+    request_method = request.method
+    request_file = request.files
+    return file_resource([(User, user_id, None), (SapConfig, config_id, "user_id")], sap_files_dir, request_method, "file", request_file, file_type="*")

@@ -125,52 +125,53 @@ def resource_limit(resource_group):
             father_id = resource_id
     return True, (model, resource_query, resource, resource_id, link_field, father_id)
 
-def save_file(request_parameter, request_file, is_reset, file_dir, new_file_name=None):
+def save_file(request_parameter, request_file, is_reset, file_dir, new_file_name=None, file_type="excel"):
     if request_parameter not in request_file:
         return False, response(False, 400, "参数错误")
-    if is_reset:
-        if os.path.exists(file_dir):
+    if os.path.exists(file_dir):
+        if is_reset:
             shutil.rmtree(file_dir)
+            os.makedirs(file_dir)
+    else:
         os.makedirs(file_dir)
     file = request_file.get(request_parameter)
     file_name = file.filename.strip('"')
-    if not file_name.endswith(accept_file_type):
-        return False, response(False, 400, "文件格式错误")
     file_prefix, file_suffix = file_name.split(".")
-    return_file_name = f"{file_prefix}.xlsx"
-    if new_file_name:
-        file_name = f"{new_file_name}.{file_suffix}"
-        file_prefix = new_file_name
-        return_file_name = f"{new_file_name}.xlsx"
-    file_path = os.path.join(file_dir, file_name)
-    file.save(file_path)
-    if not file_name.endswith(('.xlsx', '.XLSX')):
-        to_xlsx(file_path)
-    if file_name.endswith('.XLSX'):
-        change_file_name = f"{file_prefix}.xlsx"
-        os.rename(file_path, os.path.join(file_dir, change_file_name))
+    if file_type == "excel":
+        if not file_name.endswith(accept_file_type):
+            return False, response(False, 400, "文件格式错误")
+        return_file_name = f"{file_prefix}.xlsx"
+        if new_file_name:
+            file_name = f"{new_file_name}.{file_suffix}"
+            file_prefix = new_file_name
+            return_file_name = f"{new_file_name}.xlsx"
+        file_path = os.path.join(file_dir, file_name)
+        file.save(file_path)
+        if not file_name.endswith(('.xlsx', '.XLSX')):
+            to_xlsx(file_path)
+        if file_name.endswith('.XLSX'):
+            change_file_name = f"{file_prefix}.xlsx"
+            os.rename(file_path, os.path.join(file_dir, change_file_name))
+    elif file_type == "*":
+        return_file_name = file_name
+        if new_file_name:
+            file_name = f"{new_file_name}.{file_suffix}"
+            return_file_name = file_name
+        file.save(os.path.join(file_dir, file_name))
     return True, response(True, 200, "成功", return_file_name)
 
-def file_resource(resource_group, file_dir, request_method, request_parameter, request_file):
+def file_resource(resource_group, file_dir, request_method, request_parameter, request_file, file_type="excel"):
     is_success, return_data = resource_limit(resource_group)
     if not is_success:
         return return_data
     is_exists = os.path.exists(file_dir)
-    if request_method == 'GET':
-        if not is_exists:
+    if request_method == "GET":
+        if not os.path.exists(file_dir) or not os.listdir(file_dir):
             return response(False, 404, "请求的资源不存在")
-        file_list = os.listdir(file_dir)
-        if not file_list:
-            return response(False, 404, "请求的资源不存在")
-        # file_name = file_list[0]
-        # return send_from_directory(file_dir, file_name, as_attachmet = True)
-        # file_path = os.path.join(file_dir, file_list[0])
-        # excel = openpyxl.load_workbook(file_path)
-        # sheet_list = excel.sheetnames
-        # excel.close()
-        return response(True, 200, "成功", file_list[0])
+        file_path = os.path.join(file_dir, os.listdir(file_dir)[0])
+        return return_file(file_path)
     elif request_method == 'POST' or request_method == 'PUT':
-        return save_file(request_parameter, request_file, True, file_dir)[1]
+        return save_file(request_parameter, request_file, True, file_dir, None, file_type)[1]
     elif request_method == 'DELETE':
         if is_exists:
             file_list = os.listdir(file_dir)
@@ -380,7 +381,6 @@ def get_column_number():
 
 def return_file(file_path):
     base_dir, filename = os.path.split(file_path)
-    print("返回的表格", file_path)
     response = make_response(send_from_directory(base_dir, filename))
     response.headers["Content-Disposition"] = "attachment; filename={0}; filename*=utf-8''{0}".format(quote(filename))
     return response

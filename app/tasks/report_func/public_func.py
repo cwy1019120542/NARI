@@ -45,8 +45,11 @@ def split_total_inner(data_list):
         total_data_dict[company] = total_data_dict[company] + amount if company in total_data_dict else amount
     return total_data_dict, inner_data_dict
 
+def generate_percent_rate(num1, num2):
+    return f'{round((num1 / num2) * 100, 2)}%' if num2 else None
+
 def generate_change_info(amount, last_amount):
     handle_amount = handle_num(amount)
     change_amount = handle_amount - last_amount
-    rate = f"{round(change_amount / last_amount, 2)}%" if last_amount else None
+    rate = generate_percent_rate(change_amount, last_amount)
     return handle_amount, change_amount, rate
