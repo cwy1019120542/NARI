@@ -48,6 +48,8 @@ sap_log_parameter = {
 accept_file_type = (".xlsx", ".xls", ".XLSX", ".XLS")
 
 check_file_dict = {
-    "pre_excel": "预开票",
-    "suf_excel": "滞后开票"
+    "pre_excel": "预开票账龄表",
+    "suf_excel": "滞后开票账龄表",
+    "balance_analyse_excel": "投运完成在制品余额分析",
+    "product_cost_excel": "项目生产成本挂账"
 }

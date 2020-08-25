@@ -7,9 +7,9 @@ def generate_key_value(column_value_list, field_list, target_field_list, header_
         target_index = field_list.index(target_field)
         target_list.append([i.value for i in column_value_list[target_index][header_row:]])
     if len(target_list) == 1:
-        target = target_list[0]
+        target = [str(i) if i else i for i in target_list[0]]
     else:
-        target = [list(i) for i in zip(*target_list)]
+        target = [[str(j) if j else j for j in i] for i in zip(*target_list)]
     return target
 
 def generate_dict(sheet, header_row, key_field_list, value_field_list):
@@ -24,15 +24,20 @@ def generate_dict(sheet, header_row, key_field_list, value_field_list):
 def handle_num(num):
     return round(float(num) / 10000, 2)
 
-def replace_company(data_list, code_dict):
+def replace_company(data_list, centre_company_dict):
+    remove_data_list = []
     for data_index, data in enumerate(data_list[:]):
         if not data[1]:
-            data_list.pop(data_index)
+            remove_data_list.append(data)
+            continue
         if data[0] in ["4600", "4606", "4608", "4609"]:
-            if data[2] not in code_dict:
+            if data[2] not in centre_company_dict:
                 print(f"{data[2]}缺失")
+                remove_data_list.append(data)
                 continue
-            data_list[data_index][1] = code_dict[data[2]]
+            data_list[data_index][1] = centre_company_dict[data[2]]
+    for remove_data in remove_data_list:
+        data_list.remove(remove_data)
 
 def split_total_inner(data_list):
     total_data_dict = {}
@@ -46,10 +51,10 @@ def split_total_inner(data_list):
     return total_data_dict, inner_data_dict
 
 def generate_percent_rate(num1, num2):
-    return f'{round((num1 / num2) * 100, 2)}%' if num2 else None
+    return f'{round((float(num1) / float(num2)) * 100, 2)}%' if float(num2) else None
 
 def generate_change_info(amount, last_amount):
     handle_amount = handle_num(amount)
-    change_amount = handle_amount - last_amount
+    change_amount = handle_amount - float(last_amount)
     rate = generate_percent_rate(change_amount, last_amount)
     return handle_amount, change_amount, rate

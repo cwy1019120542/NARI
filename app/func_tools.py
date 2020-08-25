@@ -136,6 +136,8 @@ def save_file(request_parameter, request_file, is_reset, file_dir, new_file_name
         os.makedirs(file_dir)
     file = request_file.get(request_parameter)
     file_name = file.filename.strip('"')
+    if not file_name:
+        return False, response(False, 400, "参数错误")
     file_prefix, file_suffix = file_name.split(".")
     if file_type == "excel":
         if not file_name.endswith(accept_file_type):

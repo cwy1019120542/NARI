@@ -23,7 +23,7 @@ def compare_with_last(data_dict, file_name, last_file_dir, result_amount_field):
         result_list.append([company, handle_amount, last_amount, change_amount, rate, year_handle_amount, last_year_amount, year_change_amount, year_rate])
     return result_list
 
-def generate_result_list(file_path, key_word, code_dict, total_file_name, inner_file_name, last_file_dir, result_amount_field):
+def generate_result_list(file_path, key_word, centre_company_dict, total_file_name, inner_file_name, last_file_dir, result_amount_field):
     excel = openpyxl.load_workbook(file_path, data_only=True)
     sheet = excel[excel.sheetnames[0]]
     column_value_list = list(sheet.columns)
@@ -31,7 +31,7 @@ def generate_result_list(file_path, key_word, code_dict, total_file_name, inner_
     data_list = generate_key_value(column_value_list, field_list, ["公司代码", "公司名称", "利润中心", f"{key_word}开票金额", "客户属性", "1-2年", "2-3年", "3年以上"],
                                    1)
     excel.close()
-    replace_company(data_list, code_dict)
+    replace_company(data_list, centre_company_dict)
     total_data_dict = {}
     inner_data_dict = {}
     for data in data_list:
@@ -78,7 +78,7 @@ def generate_file(result_list, result_dir, file_name, key_word):
     workbook.close()
 
 
-def handle_3_4(file_dir, last_file_dir, code_dict):
+def handle_3_4(file_dir, last_file_dir, centre_company_dict):
     total_file1_name = "已开票未确认收入(提前开票)余额清理情况统计表(全部).xlsx"
     total_file2_name = "已开票未确认收入(滞后开票)余额清理情况统计表(全部).xlsx"
     inner_file1_name = "已开票未确认收入(提前开票)余额清理情况统计表(系统内).xlsx"
@@ -92,12 +92,12 @@ def handle_3_4(file_dir, last_file_dir, code_dict):
         print("文件丢失")
         return
     print("start generate_result_dict 预开票金额")
-    total_result_list1, inner_result_list1 = generate_result_list(file1_path, file1_key_word, code_dict,
+    total_result_list1, inner_result_list1 = generate_result_list(file1_path, file1_key_word, centre_company_dict,
                                                                   total_file1_name, inner_file1_name, last_file_dir,
                                                                   ["本月预开票金额", "挂账1年以上金额"])
     print("end generate_result_dict 预开票金额")
     print("start generate_result_dict 滞后开票金额")
-    total_result_list2, inner_result_list2 = generate_result_list(file2_path, file2_key_word, code_dict,
+    total_result_list2, inner_result_list2 = generate_result_list(file2_path, file2_key_word, centre_company_dict,
                                                                   total_file2_name, inner_file2_name, last_file_dir,
                                                                   ["本月滞后开票金额", "挂账1年以上金额"])
     print("end generate_result_dict 滞后开票金额")
