@@ -41,7 +41,7 @@ class MainConfig(db.Model):
 
     def get_son_info(self, model, config_id):
         if config_id:
-            config = db.session.query(model).filter_by(id=config_id, status=1).first()
+            config = db.session.query(model).filter_by(id=config_id).first()
             if config:
                 config_info = config.get_info()
             else:

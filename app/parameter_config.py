@@ -51,5 +51,13 @@ check_file_dict = {
     "pre_excel": "预开票账龄表",
     "suf_excel": "滞后开票账龄表",
     "balance_analyse_excel": "投运完成在制品余额分析",
-    "product_cost_excel": "项目生产成本挂账"
+    "product_cost_excel": "项目生产成本挂账",
+    "receive_excel": "内部关联交易一致性报表",
+    "open_excel": "收入确认与开票不同步",
+    "error_excel": "生产成本暂估异常情况分析",
+    "pay_cost_excel": "应付暂估成本账龄表",
+    "pay_receive_excel": "应付暂估收货账龄表",
+    "pre_pay_excel": "预付款项账龄表",
+    "other_receive_excel": "其他应收账龄表",
+    "other_pay_excel": "其他应付账龄表",
 }

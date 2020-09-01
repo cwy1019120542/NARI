@@ -6,13 +6,11 @@ from app.parameter_config import check_file_dict
 def compare_with_last(data_dict, file_name, last_file_dir, result_amount_field):
     result_list = []
     if os.path.exists(last_file_dir) and file_name in os.listdir(last_file_dir):
-        print("last_file_dir exists")
         last_excel = openpyxl.load_workbook(os.path.join(last_file_dir, file_name), data_only=True)
         last_sheet = last_excel[last_excel.sheetnames[0]]
         last_data_dict = generate_dict(last_sheet, 1, ["公司名称"], result_amount_field)
         last_excel.close()
     else:
-        print("last_file_dir not exists")
         last_data_dict = {}
     for company, amount_group in data_dict.items():
         amount, year_amount = amount_group
@@ -41,12 +39,8 @@ def generate_result_list(file_path, key_word, centre_company_dict, total_file_na
         if data[4] == "国网系统内-集团内":
             inner_data_dict[company] = (inner_data_dict[company][0] + amount, inner_data_dict[company][1] + year_amount) if company in inner_data_dict else (amount, year_amount)
         total_data_dict[company] = (total_data_dict[company][0] + amount, total_data_dict[company][1] + year_amount) if company in total_data_dict else (amount, year_amount)
-    print("start compare_with_last total")
     total_result_list = compare_with_last(total_data_dict, total_file_name, last_file_dir, result_amount_field)
-    print("end compare_with_last total")
-    print("start compare_with_last inner")
     inner_result_list = compare_with_last(inner_data_dict, inner_file_name, last_file_dir, result_amount_field)
-    print("end compare_with_last inner")
     return total_result_list, inner_result_list
 
 def generate_file(result_list, result_dir, file_name, key_word):
@@ -89,19 +83,14 @@ def handle_3_4(file_dir, last_file_dir, centre_company_dict):
     file1_path = os.path.join(origin_file_dir, f"{check_file_dict['pre_excel']}.xlsx")
     file2_path = os.path.join(origin_file_dir, f"{check_file_dict['suf_excel']}.xlsx")
     if not os.path.exists(file1_path) or not os.path.exists(file2_path):
-        print("文件丢失")
+        print("3,4文件丢失")
         return
-    print("start generate_result_dict 预开票金额")
     total_result_list1, inner_result_list1 = generate_result_list(file1_path, file1_key_word, centre_company_dict,
                                                                   total_file1_name, inner_file1_name, last_file_dir,
                                                                   ["本月预开票金额", "挂账1年以上金额"])
-    print("end generate_result_dict 预开票金额")
-    print("start generate_result_dict 滞后开票金额")
     total_result_list2, inner_result_list2 = generate_result_list(file2_path, file2_key_word, centre_company_dict,
                                                                   total_file2_name, inner_file2_name, last_file_dir,
                                                                   ["本月滞后开票金额", "挂账1年以上金额"])
-    print("end generate_result_dict 滞后开票金额")
-    print("start generate_file total")
     result_file_dir = os.path.join(file_dir, "result")
     if not os.path.exists(result_file_dir):
         os.makedirs(result_file_dir)
@@ -109,4 +98,4 @@ def handle_3_4(file_dir, last_file_dir, centre_company_dict):
     generate_file(inner_result_list1, result_file_dir, inner_file1_name, file1_key_word)
     generate_file(total_result_list2, result_file_dir, total_file2_name, file2_key_word)
     generate_file(inner_result_list2, result_file_dir, inner_file2_name, file2_key_word)
-    print("运行结束")
+    print("3,4run end")

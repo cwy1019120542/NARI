@@ -27,14 +27,12 @@ def update_message(message_id=None):
             return response(False, 403, "没有权限设置更新日志")
     return resource_manage([(UpdateMessage, message_id, None)], request_method, request_args, request_json, update_message_premeter)
 
-@public_blueprint.route("/excel", methods=["GET", "POST"])
-def excel():
+@public_blueprint.route("/excel", methods=["POST"])
+@public_blueprint.route("/excel/<name>", methods=["GET", "DELETE"])
+def excel(name=None):
     temp_files_dir = current_app.config["TEMP_FILES_DIR"]
     if request.method == "GET":
         request_args = request.args
-        if "name" not in request_args:
-            return response(False, 400, "参数错误")
-        name = request_args["name"]
         if not name.endswith(accept_file_type):
             return response(False, 400, "文件格式不合法")
         file_path = os.path.join(temp_files_dir, name)
@@ -62,4 +60,11 @@ def excel():
     elif request.method == "POST":
         request_file = request.files
         return save_file("excel", request_file, False, temp_files_dir, str(uuid.uuid1()))[1]
+    elif request.method == "DELETE":
+        temp_file_path = os.path.join(temp_files_dir, name)
+        if not os.path.exists(temp_file_path):
+            return response(False, 404, "资源不存在")
+        os.remove(temp_file_path)
+        return response(True, 204, "成功")
+
 

@@ -23,8 +23,8 @@ def generate_result_list(file_path, centre_company_dict, last_date):
             print(data_date)
             continue
         company = data[1]
-        amount = float(data[3])
-        count = int(data[5])
+        amount = float(data[3]) if data[3] else 0
+        count = int(data[5]) if data[5] else 0
         data_dict[company] = data_dict[company] + amount if company in data_dict else amount
         count_dict[company] = count_dict[company] + count if company in count_dict else count
     result_list = []
@@ -58,7 +58,7 @@ def handle_5(file_dir, centre_company_dict):
     origin_file_dir = os.path.join(file_dir, "origin")
     file_path = os.path.join(origin_file_dir, f"{check_file_dict['balance_analyse_excel']}.xlsx")
     if not os.path.exists(file_path):
-        print("文件丢失")
+        print("5文件丢失")
         return
     result_list = generate_result_list(file_path, centre_company_dict, last_date)
     result_file_dir = os.path.join(file_dir, "result")
@@ -66,4 +66,4 @@ def handle_5(file_dir, centre_company_dict):
         os.makedirs(result_file_dir)
     result_file_path = os.path.join(result_file_dir, file_name)
     generate_file(result_list, result_file_path)
-    print("run end")
+    print("5run end")

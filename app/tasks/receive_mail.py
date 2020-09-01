@@ -119,16 +119,15 @@ def receive_mail(app_config_info, main_config_info):
             return "运行失败,无法登陆收件邮箱"
         resp, mail_list, octets = pop_obj.list()
         mail_count = len(mail_list)
-        no_response_list = []
-        no_attachment_list = []
         error_format_target_list = set()
         no_attachment_target_list = set()
-        generate_log(main_config_id, "info", "mail_count {mail_count}")
+        generate_log(main_config_id, "info", f"mail_count {mail_count}")
         file_dir = os.path.join(config_files_dir, str(main_config_id), "receive_excel")
         if os.path.exists(file_dir):
             shutil.rmtree(file_dir)
         os.makedirs(file_dir)
         history_list = []
+        excel_data_list = []
         for i in range(mail_count, 0, -1):
             try:
                 resp, lines, octets = pop_obj.retr(i)
@@ -194,6 +193,7 @@ def receive_mail(app_config_info, main_config_info):
                                 if target in error_format_target_list:
                                     error_format_target_list.remove(target)
                             history_list.append(ReceiveHistory(email=from_email, target=target_group_str, create_timestamp=run_timestamp, main_config_id=main_config_id, is_success=True, message="success"))
+                            excel_data_list.append([target_group_str, from_email, "成功"])
                     else:
                         for target in target_group:
                             if target in target_list:
@@ -201,29 +201,24 @@ def receive_mail(app_config_info, main_config_info):
             else:
                 generate_log(main_config_id, "info", f"{from_email} {subject} {msg_timestamp} 主题不符合")
         # pop_obj.quit()
+        remind_email_list = []
         for no_attachment_target in no_attachment_target_list:
             email_group = '|'.join(match_dict[no_attachment_target])
+            remind_email_list.extend(match_dict[no_attachment_target])
             history_list.append(ReceiveHistory(email=email_group, target=no_attachment_target, create_timestamp=run_timestamp, main_config_id=main_config_id, is_success=False, message="缺失附件"))
+            excel_data_list.append([no_attachment_target, email_group, "失败", "缺失附件"])
         for error_format_target in error_format_target_list:
             email_group = '|'.join(match_dict[error_format_target])
+            remind_email_list.extend(match_dict[error_format_target])
             history_list.append(ReceiveHistory(email=email_group, target=error_format_target, create_timestamp=run_timestamp, main_config_id=main_config_id, is_success=False, message="附件格式不合法"))
+            excel_data_list.append([error_format_target, email_group, "失败", "附件格式不合法"])
         for target in target_list:
             if target not in no_attachment_target_list:
                 email_group = '|'.join(match_dict[target])
+                remind_email_list.extend(match_dict[target])
                 history_list.append(ReceiveHistory(email=email_group, target=target, create_timestamp=run_timestamp, main_config_id=main_config_id, is_success=False, message="未回复"))
+                excel_data_list.append([target, email_group, "失败", "未回复"])
         generate_log(main_config_id, "info", f"邮件收取完毕")
-        if is_remind:
-            remind_target_list = []
-            remind_target_list.extend(no_response_list)
-            remind_target_list.extend(no_attachment_list)
-            if remind_target_list:
-                email_list = []
-                for remind_target_group  in remind_target_list:
-                    email_list.extend(remind_target_group[1].split('|'))
-                is_success, return_data = send_multi_mail(remind_ip, remind_port, username, password, email_list,
-                                                          remind_subject, remind_content)
-                if not is_success:
-                    return return_data
         sheet_info = json.loads(sheet_info)
         is_success, return_data = get_file_path(config_files_dir, main_config_id, "template_excel")
         template_path = False
@@ -406,12 +401,23 @@ def receive_mail(app_config_info, main_config_info):
                 result_excel.save(result_path)
                 result_excel.close()
         session = Session()
-        session.query(ReceiveHistory).filter_by(main_config_id=main_config_id).update({"status": 0})
+        session.query(ReceiveHistory).filter_by(main_config_id=main_config_id).delete()
         session.add_all(history_list)
         session.query(MainConfig).filter_by(id=main_config_id).update({"run_timestamp": run_timestamp})
         session.commit()
         session.close()
+        workbook = openpyxl.Workbook()
+        sheet = workbook[workbook.sheetnames[0]]
+        sheet.append(["序号", "单位", "邮箱", "状态", "原因"])
+        for data_index, excel_data in enumerate(excel_data_list, start=1):
+            sheet.append([data_index] + excel_data)
+        status_excel_path = os.path.join(config_files_dir, str(main_config_id), "收件状态表.xlsx")
+        workbook.save(status_excel_path)
+        workbook.close()
         generate_log(main_config_id, "info", f"运行成功")
+        if is_remind:
+            send_multi_mail(remind_ip, remind_port, username, password, remind_email_list,
+                                                      remind_subject, remind_content)
         return "运行成功"
     except Exception as error:
         generate_log(main_config_id, "critical", f"运行失败 {print_exc()}")

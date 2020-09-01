@@ -36,13 +36,9 @@ def generate_result_list(file_path, centre_company_dict, last_file_path, code_de
     data_dict = {}
     for data in data_list:
         company = data[1]
-        amount = float(data[3])
-        year_amount = sum(float(i) for i in data[4:])
+        amount = float(data[3]) if data[3] else 0
+        year_amount = sum(float(i) if i else 0 for i in data[4:])
         data_dict[company] = [data_dict[company][0] + amount, data_dict[company][1] + year_amount] if company in data_dict else [amount, year_amount]
-        if company == "山西晋能置信非晶合金变压器有限公司":
-            print(year_amount)
-            print(data)
-            print(data_dict[company])
     return compare_with_last(data_dict, last_file_path)
 
 def generate_file(result_list, result_file_path):
@@ -82,4 +78,4 @@ def handle_6(file_dir, last_file_dir, centre_company_dict, code_department_dict)
         os.makedirs(result_file_dir)
     result_file_path = os.path.join(result_file_dir, file_name)
     generate_file(result_list, result_file_path)
-    print("run end")
+    print("6run end")

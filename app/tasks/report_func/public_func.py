@@ -1,4 +1,4 @@
-import os
+import os, openpyxl
 from app.parameter_config import check_file_dict
 
 def generate_key_value(column_value_list, field_list, target_field_list, header_row):
@@ -58,3 +58,13 @@ def generate_change_info(amount, last_amount):
     change_amount = handle_amount - float(last_amount)
     rate = generate_percent_rate(change_amount, last_amount)
     return handle_amount, change_amount, rate
+
+def get_data_list(file_path, header_row, start_row, target_field_list):
+    workbook = openpyxl.load_workbook(file_path)
+    sheet = workbook[workbook.sheetnames[0]]
+    column_value_list = list(sheet.columns)
+    field_list = [i.value for i in sheet[header_row]]
+    data_list = generate_key_value(column_value_list, field_list,
+                                   target_field_list, start_row)
+    workbook.close()
+    return data_list

@@ -7,7 +7,7 @@ def compare_with_last(data_dict, last_file_path):
     if os.path.exists(last_file_path):
         workbook = openpyxl.load_workbook(last_file_path)
         sheet = workbook[workbook.sheetnames[0]]
-        last_data_dict = generate_dict(sheet, 1, ["单位名称"], ["本月合计金额", "本月1年以上金额"])
+        last_data_dict = generate_dict(sheet, 1, ["单位名称"], ["本月合计金额", "本月3年以上金额"])
         workbook.close()
     else:
         last_data_dict = {}
@@ -22,7 +22,7 @@ def compare_with_last(data_dict, last_file_path):
     return result_list
 
 def generate_result_list(file_path, centre_company_dict, last_file_path, code_department_dict):
-    data_list = get_data_list(file_path, 1, 1, ["利润中心", "金额", "1-2年", "2-3年", "3年以上"])
+    data_list = get_data_list(file_path, 1, 1, ["利润中心", "本币金额", "3-4年", "4-5年", "5年以上"])
     for data_index, data in enumerate(data_list[:]):
         centre = data[0]
         code = centre[1:5]
@@ -41,7 +41,7 @@ def generate_result_list(file_path, centre_company_dict, last_file_path, code_de
 def generate_file(result_list, result_file_path):
     workbook = openpyxl.Workbook()
     sheet = workbook[workbook.sheetnames[0]]
-    sheet.append(["序号", "单位名称", "本月合计金额", "年初合计金额", "合计金额增减变化", "合计金额增降幅 %", "本月1年以上金额", "年初1年以上金额", "1年以上金额增长额", "1年以上金额增降幅 %"])
+    sheet.append(["序号", "单位名称", "本月合计金额", "年初合计金额", "合计金额增减变化", "合计金额增降幅 %", "本月3年以上金额", "年初3年以上金额", "3年以上金额增长额", "3年以上金额增降幅 %"])
     result_list.sort(key=lambda x:x[5])
     sum_amount = 0
     sum_last_amount = 0
@@ -61,12 +61,12 @@ def generate_file(result_list, result_file_path):
     workbook.save(result_file_path)
     workbook.close()
 
-def handle_7(file_dir, last_file_dir, centre_company_dict, code_department_dict):
-    file_name = "挂账一年以上应付项目暂估情况分析.xlsx"
+def handle_10(file_dir, last_file_dir, centre_company_dict, code_department_dict):
+    file_name = "挂账三年以上其他应收账款情况.xlsx"
     origin_file_dir = os.path.join(file_dir, "origin")
-    file_path = os.path.join(origin_file_dir, f"{check_file_dict['pay_cost_excel']}.xlsx")
+    file_path = os.path.join(origin_file_dir, f"{check_file_dict['other_receive_excel']}.xlsx")
     if not os.path.exists(file_path):
-        print(f"7文件丢失")
+        print(f"10文件丢失")
         return
     last_file_path = os.path.join(last_file_dir, file_name)
     result_list = generate_result_list(file_path, centre_company_dict, last_file_path, code_department_dict)
@@ -75,4 +75,4 @@ def handle_7(file_dir, last_file_dir, centre_company_dict, code_department_dict)
         os.makedirs(result_file_dir)
     result_file_path = os.path.join(result_file_dir, file_name)
     generate_file(result_list, result_file_path)
-    print("7run end")
+    print("10run end")

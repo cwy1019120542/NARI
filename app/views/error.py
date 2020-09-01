@@ -3,6 +3,10 @@ from ..func_tools import response
 
 error_blueprint = Blueprint('error', __name__)
 
+@error_blueprint.app_errorhandler(400)
+def error_400(e):
+    return response(False, 400, "坏请求")
+
 @error_blueprint.app_errorhandler(404)
 def error_404(e):
     return response(False, 404, "请求的资源不存在")

@@ -40,11 +40,20 @@ def log(user_id, config_id):
         redis.delete(key)
         return response(True, 204, "成功")
 
-@sap_config_blueprint.route("/<int:config_id>/main_file", methods=["GET", "POST"])
+@sap_config_blueprint.route("/<int:config_id>/should_file", methods=["GET", "POST"])
 @is_login
-def main_file(user_id, config_id):
+def should_file(user_id, config_id):
     config = current_app.config
-    sap_files_dir = os.path.join(config["SAP_FILES_DIR"], str(user_id), "main")
+    sap_files_dir = os.path.join(config["SAP_FILES_DIR"], str(user_id), "should")
+    request_method = request.method
+    request_file = request.files
+    return file_resource([(User, user_id, None), (SapConfig, config_id, "user_id")], sap_files_dir, request_method, "file", request_file, file_type="*")
+
+@sap_config_blueprint.route("/<int:config_id>/pre_file", methods=["GET", "POST"])
+@is_login
+def pre_file(user_id, config_id):
+    config = current_app.config
+    sap_files_dir = os.path.join(config["SAP_FILES_DIR"], str(user_id), "pre")
     request_method = request.method
     request_file = request.files
     return file_resource([(User, user_id, None), (SapConfig, config_id, "user_id")], sap_files_dir, request_method, "file", request_file, file_type="*")

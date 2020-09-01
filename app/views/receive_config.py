@@ -6,7 +6,7 @@ from ..parameter_config import receive_config_parameter
 receive_config_blueprint = Blueprint('receive_config', __name__)
 
 @receive_config_blueprint.route('', methods=['GET', 'POST'])
-@receive_config_blueprint.route('/<int:receive_config_id>', methods=['GET', 'PUT', 'DELETE'])
+@receive_config_blueprint.route('/<int:receive_config_id>', methods=['GET', 'PUT'])
 @is_login
 def send_config(user_id, receive_config_id=None):
     request_args = request.args

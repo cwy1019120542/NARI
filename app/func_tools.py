@@ -17,7 +17,7 @@ from email.header import Header
 from flask import session, jsonify, send_from_directory, make_response
 from functools import wraps
 from .extention import db, redis, celery
-from .models import User, MainConfig
+from .models import User, MainConfig, SendConfig, ReceiveConfig
 from .parameter_config import accept_file_type
 
 
@@ -85,8 +85,6 @@ def is_login(func):
 def page_filter(model, clean_data, fuzzy_field):
     limit = clean_data.pop('limit', 10)
     offset = clean_data.pop('offset', 0)
-    if "status" not in clean_data:
-        clean_data["status"] = 1
     page_info = {
         "limit": limit,
         "offset": offset,
@@ -114,7 +112,7 @@ def resource_limit(resource_group):
     for resource_index, (model, resource_id, link_field) in enumerate(resource_group):
         if not resource_id:
             break
-        resource_query = db.session.query(model).filter_by(id=resource_id, status=1)
+        resource_query = db.session.query(model).filter_by(id=resource_id)
         resource = resource_query.first()
         if not resource:
             return False, response(False, 404, "请求的资源不存在")
@@ -231,7 +229,7 @@ def resource_manage(resource_group, request_method, request_args, request_json, 
         result = db.session.query(model).get(resource_id).get_info()
         return response(True, 201, "成功", result)
     elif request_method == 'DELETE':
-        resource_query.update({"status": 0})
+        resource_query.delete()
         db.session.commit()
         return response(True, 204, "成功")
 
@@ -456,6 +454,16 @@ def start_task(app_config, main_config_info, function_name, task_function):
         return True, True
     else:
         return False, response(False, 400, "配置缺失")
+
+def return_target_file(resource_group, file_path):
+    if resource_group:
+        is_success, return_data = resource_limit(resource_group)
+        if not is_success:
+            return return_data
+    if not os.path.exists(file_path):
+        return response(False, 404, "资源不存在")
+    else:
+        return return_file(file_path)
 
 
 

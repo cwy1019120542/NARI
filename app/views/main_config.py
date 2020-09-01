@@ -2,9 +2,10 @@ import os
 import json
 import time
 import zipfile
+import shutil
 import smtplib
 from flask import Blueprint, request, current_app
-from ..func_tools import start_task, is_login, response,file_resource, resource_manage, get_run_config, create_task_id, resource_limit, parameter_check, return_file, get_file_path, send_multi_mail, return_zip
+from ..func_tools import start_task, is_login, response,file_resource, resource_manage, get_run_config, create_task_id, resource_limit, parameter_check, return_file, get_file_path, send_multi_mail, return_zip, return_target_file
 from ..models import User, MainConfig, SendConfig, ReceiveConfig, SendHistory, ReceiveHistory
 from ..parameter_config import main_config_parameter, remind_parameter, send_history_parameter, receive_history_parameter
 from ..extention import db, redis, celery
@@ -34,6 +35,34 @@ def main_config(user_id, main_config_id=None):
             is_success, return_data = resource_limit([(User, user_id, None), (ReceiveConfig, receive_config_id, "user_id")])
             if not is_success:
                 return return_data
+    if request_method == "DELETE":
+        is_success, return_data = resource_limit([(User, user_id, None), (MainConfig, main_config_id, "user_id")])
+        if not is_success:
+            return return_data
+        model, resource_query, resource, resource_id, link_field, father_id = return_data
+        main_config_info = resource.get_info()
+        send_config_info = main_config_info["send_config_info"]
+        receive_config_info = main_config_info["receive_config_info"]
+        send_config_id = send_config_info.get("id")
+        receive_config_id = receive_config_info.get("id")
+        if send_config_id:
+            db.session.query(SendConfig).filter_by(id=send_config_id).delete()
+        if receive_config_id:
+            db.session.query(ReceiveConfig).filter_by(id=receive_config_id).delete()
+        config_dir = os.path.join(current_app.config["CONFIG_FILES_DIR"], str(main_config_id))
+        if os.path.exists(config_dir):
+            shutil.rmtree(config_dir)
+        temp_files_dir = current_app.config["TEMP_FILES_DIR"]
+        send_excel_uuid_name = send_config_info.get("send_excel_uuid_name")
+        template_excel_uuid_name = receive_config_info.get("template_excel_uuid_name")
+        if send_excel_uuid_name:
+            send_excel_temp_path = os.path.join(temp_files_dir, send_excel_uuid_name)
+            if os.path.exists(send_excel_temp_path):
+                os.remove(send_excel_temp_path)
+        if template_excel_uuid_name:
+            template_excel_temp_path = os.path.join(temp_files_dir, template_excel_uuid_name)
+            if os.path.exists(template_excel_temp_path):
+                os.remove(template_excel_temp_path)
     return resource_manage([(User, user_id, None), (MainConfig, main_config_id, "user_id")], request_method, request_args, request_json, main_config_parameter)
 
 @main_config_blueprint.route('/<int:main_config_id>/match_excel', methods=["GET", "POST", "PUT", "DELETE"])
@@ -195,3 +224,17 @@ def receive_excel(user_id, main_config_id):
     zip_path = os.path.join(current_app.config['CONFIG_FILES_DIR'], str(main_config_id), f'收取表格.zip')
     receive_file_dir = os.path.join(current_app.config['CONFIG_FILES_DIR'], str(main_config_id), "receive_excel")
     return return_zip([(User, user_id, None), (MainConfig, main_config_id, "user_id")], zip_path, receive_file_dir)
+
+@main_config_blueprint.route('/<int:main_config_id>/receive_status_excel', methods=['GET'])
+@is_login
+def receive_status_excel(user_id, main_config_id):
+    config_files_dir = current_app.config['CONFIG_FILES_DIR']
+    file_path = os.path.join(config_files_dir, str(main_config_id), "收件状态表.xlsx")
+    return return_target_file([(User, user_id, None), (MainConfig, main_config_id, "user_id")], file_path)
+
+@main_config_blueprint.route('/<int:main_config_id>/send_status_excel', methods=['GET'])
+@is_login
+def send_status_excel(user_id, main_config_id):
+    config_files_dir = current_app.config['CONFIG_FILES_DIR']
+    file_path = os.path.join(config_files_dir, str(main_config_id), "发件状态表.xlsx")
+    return return_target_file([(User, user_id, None), (MainConfig, main_config_id, "user_id")], file_path)
