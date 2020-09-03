@@ -19,6 +19,37 @@ def generate_log(main_config_id, level, message):
     getattr(send_logger, level)(' '.join(["main_config_id", str(main_config_id), message]))
     redis.rpush(f"{main_config_id}_send_log", time.strftime("%Y-%m-%d %H:%M:%S ") + message)
 
+def safe_send(smtp_obj, email_list, sender, subject, content, ip, port, password, key, main_config_id, run_timestamp, attachment_list=[]):
+    history_list = []
+    excel_data_list = []
+    for email in email_list:
+        send_success = False
+        for i in range(5):
+            try:
+                smtp_send_mail(smtp_obj, sender, email, subject, content, attachment_list)
+            except Exception as error:
+                if i == 0:
+                    # smtp_obj.quit()
+                    smtp_obj = smtplib.SMTP(ip, port)
+                    smtp_obj.login(sender, password)
+            else:
+                send_success = True
+                break
+        if not send_success:
+            history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email,
+                                            create_timestamp=run_timestamp, is_success=False,
+                                            message="发送失败"))
+            excel_data_list.append([key, email, "失败"])
+            generate_log(main_config_id, "error",
+                         f"main_config_id {main_config_id} {email} 发送失败")
+        else:
+            history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email,
+                                            create_timestamp=run_timestamp, is_success=True,
+                                            message="success"))
+            excel_data_list.append([key, email, "成功"])
+            generate_log(main_config_id, "info", f"main_config_id {main_config_id} {email} 发送成功")
+    return history_list, excel_data_list
+
 @celery.task(track_started=True)
 def send_mail(app_config_info, main_config_info):
     try:
@@ -56,20 +87,9 @@ def send_mail(app_config_info, main_config_info):
         if not is_success:
             generate_log(main_config_id, "info", f"main_config_id {main_config_id} 发送无附件邮件")
             for key, email_list in match_dict.items():
-                for email in email_list:
-                    try:
-                        smtp_send_mail(smtp_obj, sender, email, subject, content)
-                    except Exception as error:
-                        history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email,
-                                                        create_timestamp=run_timestamp, is_success=False, message="发送失败"))
-                        excel_data_list.append([key, email, "失败"])
-                        generate_log(main_config_id, "error", f"main_config_id {main_config_id} {email} 发送失败 {error}")
-                        continue
-                    else:
-                        history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email,
-                                                        create_timestamp=run_timestamp, is_success=True, message="success"))
-                        excel_data_list.append([key, email, "成功"])
-                        generate_log(main_config_id, "info", f"main_config_id {main_config_id} {email} 发送成功")
+                single_history_list, single_excel_data_list = safe_send(smtp_obj, email_list, sender, subject, content, ip, port, password, key, main_config_id, run_timestamp)
+                history_list.extend(single_history_list)
+                excel_data_list.extend(single_excel_data_list)
         else:
             send_excel_path = return_data
             send_excel_name = os.path.splitext(os.path.split(send_excel_path)[1])[0]
@@ -162,22 +182,16 @@ def send_mail(app_config_info, main_config_info):
                 work_book.close()
                 generate_log(main_config_id, "info", f"main_config_id {main_config_id} {key} 表生成完毕")
             os.remove(empty_template_path)
+            # smtp_obj.quit()
+            smtp_obj = smtplib.SMTP(ip, port)
+            smtp_obj.login(sender, password)
             for key in result_dict:
                 if key in match_dict:
                     email_list = match_dict[key]
                     split_path = os.path.join(split_dir, f'{clean_file_name(key)}_{send_excel_name}_.xlsx')
-                    for email in email_list:
-                        try:
-                            smtp_send_mail(smtp_obj, sender, email, subject, content, [split_path])
-                        except Exception as error:
-                            history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email, create_timestamp=run_timestamp, is_success=False, message="发送失败"))
-                            excel_data_list.append([key, email, "失败"])
-                            generate_log(main_config_id, "error", f"main_config_id {main_config_id} {email} 发送失败 {error}")
-                            continue
-                        else:
-                            history_list.append(SendHistory(target=key, main_config_id=main_config_id, email=email, create_timestamp=run_timestamp, is_success=True, message="success"))
-                            excel_data_list.append([key, email, "成功"])
-                            generate_log(main_config_id, "info", f"main_config_id {main_config_id} {email} 发送成功")
+                    single_history_list, single_excel_data_list = safe_send(smtp_obj, email_list, sender, subject, content, ip, port, password, key, main_config_id, run_timestamp, [split_path])
+                    history_list.extend(single_history_list)
+                    excel_data_list.extend(single_excel_data_list)
         session = Session()
         session.query(SendHistory).filter_by(main_config_id=main_config_id).delete()
         session.add_all(history_list)
@@ -193,6 +207,7 @@ def send_mail(app_config_info, main_config_info):
         workbook.save(status_excel_path)
         workbook.close()
         generate_log(main_config_id, "info", f"main_config_id {main_config_id}  运行成功")
+        # smtp_obj.quit()
         return "运行成功"
     except Exception as error:
         generate_log(main_config_id, "critical", f"main_config_id {main_config_id} 运行失败 {print_exc()}")

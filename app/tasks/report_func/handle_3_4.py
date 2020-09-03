@@ -5,9 +5,9 @@ from app.parameter_config import check_file_dict
 
 def compare_with_last(data_dict, file_name, last_file_dir, result_amount_field):
     result_list = []
-    if os.path.exists(last_file_dir) and file_name in os.listdir(last_file_dir):
-        last_excel = openpyxl.load_workbook(os.path.join(last_file_dir, file_name), data_only=True)
-        last_sheet = last_excel[last_excel.sheetnames[0]]
+    if os.path.exists(last_file_dir) and "稽核处结果表.xlsx" in os.listdir(last_file_dir):
+        last_excel = openpyxl.load_workbook(os.path.join(last_file_dir, "稽核处结果表.xlsx"), data_only=True)
+        last_sheet = last_excel[file_name]
         last_data_dict = generate_dict(last_sheet, 1, ["公司名称"], result_amount_field)
         last_excel.close()
     else:
@@ -44,10 +44,10 @@ def generate_result_list(file_path, key_word, centre_company_dict, total_file_na
     return total_result_list, inner_result_list
 
 def generate_file(result_list, result_dir, file_name, key_word):
-    file_path = os.path.join(result_dir, file_name)
+    file_path = os.path.join(result_dir, "稽核处结果表.xlsx")
     result_list.sort(key=lambda x:x[1], reverse=True)
-    workbook = openpyxl.Workbook()
-    sheet = workbook[workbook.sheetnames[0]]
+    workbook = openpyxl.load_workbook(file_path)
+    sheet = workbook.create_sheet(file_name, -1)
     field_list = ["序号", "公司名称", f"本月{key_word}开票金额", f"年初{key_word}开票金额", "总额较年初增减额", "总额较年初变化幅度(%)", "挂账1年以上金额", "年初挂账1年以上金额", "挂账1年以上较年初增减额", "挂账1年以上较年初变化幅度(%)"]
     sheet.append(field_list)
     sum_amount = 0
@@ -68,15 +68,15 @@ def generate_file(result_list, result_dir, file_name, key_word):
     sum_year_rate = generate_percent_rate(sum_year_change_amount, sum_last_year_amount)
     sum_list = [None, "合计", sum_amount, sum_last_amount, sum_change_amount, sum_rate, sum_year_amount, sum_last_year_amount, sum_year_change_amount, sum_year_rate]
     sheet.append(sum_list)
-    workbook.save(file_path)
+    workbook.save()
     workbook.close()
 
 
 def handle_3_4(file_dir, last_file_dir, centre_company_dict):
-    total_file1_name = "已开票未确认收入(提前开票)余额清理情况统计表(全部).xlsx"
-    total_file2_name = "已开票未确认收入(滞后开票)余额清理情况统计表(全部).xlsx"
-    inner_file1_name = "已开票未确认收入(提前开票)余额清理情况统计表(系统内).xlsx"
-    inner_file2_name = "已开票未确认收入(滞后开票)余额清理情况统计表(系统内).xlsx"
+    total_file1_name = "已开票未确认收入(提前开票)余额清理情况统计表(全部)"
+    total_file2_name = "已开票未确认收入(滞后开票)余额清理情况统计表(全部)"
+    inner_file1_name = "已开票未确认收入(提前开票)余额清理情况统计表(系统内)"
+    inner_file2_name = "已开票未确认收入(滞后开票)余额清理情况统计表(系统内)"
     file1_key_word = "预"
     file2_key_word = "滞后"
     origin_file_dir = os.path.join(file_dir, "origin")
@@ -92,8 +92,6 @@ def handle_3_4(file_dir, last_file_dir, centre_company_dict):
                                                                   total_file2_name, inner_file2_name, last_file_dir,
                                                                   ["本月滞后开票金额", "挂账1年以上金额"])
     result_file_dir = os.path.join(file_dir, "result")
-    if not os.path.exists(result_file_dir):
-        os.makedirs(result_file_dir)
     generate_file(total_result_list1, result_file_dir, total_file1_name, file1_key_word)
     generate_file(inner_result_list1, result_file_dir, inner_file1_name, file1_key_word)
     generate_file(total_result_list2, result_file_dir, total_file2_name, file2_key_word)

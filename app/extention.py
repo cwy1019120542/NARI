@@ -15,7 +15,7 @@ redis = Redis(db=0, host=os.environ.get('REDIS_HOST', 'localhost'), port=6379)
 BROKER_URL = os.getenv('BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 celery = Celery(__name__, backend=CELERY_RESULT_BACKEND, broker=BROKER_URL)
-engine = create_engine(os.environ.get('SQLALCHEMY_DATABASE_URI', 'mysql://cwy:never1019120542,@localhost:3306/NARI'))
+engine = create_engine(os.environ.get('SQLALCHEMY_DATABASE_URI', 'mysql://cwy:never1019120542,@localhost:3306/NARI'), pool_timeout=3600, pool_recycle=60)
 Session = sessionmaker(bind=engine)
 
 send_logger = logging.getLogger('send')

@@ -110,6 +110,7 @@ def send_captcha():
         smtp_obj = smtplib.SMTP(SERVER_MAIL_IP)
         smtp_obj.login(SERVER_MAIL_USER, SERVER_MAIL_PASSWORD)
         smtp_send_mail(smtp_obj, SERVER_MAIL_USER, email, "邮件收发系统注册验证码", str(captcha))
+        # smtp_obj.quit()
     except Exception as error:
         print(error)
         return response(False, 403, "发邮件失败")
