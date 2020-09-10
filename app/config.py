@@ -10,6 +10,8 @@ class BaseConfig:
     SAP_FILES_DIR = os.path.join(BASE_DIR, 'sap_files')
     SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI', 'mysql://cwy:never1019120542,@localhost:3306/NARI')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_POOL_TIMEOUT = 3600
+    SQLALCHEMY_POOL_RECYCLE = 1800
     BROKER_URL = os.environ.get('BROKER_URL', 'redis://localhost:6379/0')
     CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
     CELERYD_CONCURRENCY = 20

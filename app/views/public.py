@@ -1,6 +1,7 @@
 import os
 import openpyxl
 import uuid
+import time
 from urllib.parse import quote
 from flask import Blueprint, current_app, send_from_directory, make_response, request
 from ..func_tools import return_file, db, response, resource_manage, save_file
@@ -38,7 +39,7 @@ def excel(name=None):
         file_path = os.path.join(temp_files_dir, name)
         if not os.path.exists(file_path):
             return response(False, 404, "请求的资源不存在")
-        excel = openpyxl.load_workbook(file_path, data_only=True)
+        excel = openpyxl.load_workbook(file_path, data_only=True, read_only=True)
         sheet_name_list = excel.sheetnames
         header_data = None
         sheet_name = None
