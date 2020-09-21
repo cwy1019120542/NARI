@@ -238,3 +238,14 @@ def send_status_excel(user_id, main_config_id):
     config_files_dir = current_app.config['CONFIG_FILES_DIR']
     file_path = os.path.join(config_files_dir, str(main_config_id), "发件状态表.xlsx")
     return return_target_file([(User, user_id, None), (MainConfig, main_config_id, "user_id")], file_path)
+
+@main_config_blueprint.route('/<int:main_config_id>/attachment', methods=['POST'])
+@main_config_blueprint.route('/<int:main_config_id>/attachment/<attachment_name>', methods=['DELETE'])
+@is_login
+def attachment(user_id, main_config_id, attachment_name=None):
+    config_files_dir = current_app.config['CONFIG_FILES_DIR']
+    attachment_dir = os.path.join(config_files_dir, str(main_config_id), 'attachment')
+    attachment_path = None
+    if attachment_name:
+        attachment_path = os.path.join(attachment_dir, attachment_name)
+    return file_resource([(User, user_id, None), (MainConfig, main_config_id, "user_id")], attachment_dir, request.method, "attachment", request.files, "*", attachment_path, False)

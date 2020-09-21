@@ -82,12 +82,18 @@ def send_mail(app_config_info, main_config_info):
             return "运行失败,无法登陆发件邮箱"
         run_timestamp = time.time()
         is_success, return_data = get_file_path(config_files_dir, main_config_id, "send_excel")
+        attachment_dir = os.path.join(config_files_dir, str(main_config_id), "attachment")
+        attachment_list = []
+        if os.path.exists(attachment_dir):
+            for attachment_name in os.listdir(attachment_dir):
+                attachment_path = os.path.join(attachment_dir, attachment_name)
+                attachment_list.append(attachment_path)
         history_list = []
         excel_data_list = []
         if not is_success:
-            generate_log(main_config_id, "info", f"main_config_id {main_config_id} 发送无附件邮件")
+            generate_log(main_config_id, "info", f"main_config_id {main_config_id} 发送无拆分附件邮件")
             for key, email_list in match_dict.items():
-                single_history_list, single_excel_data_list = safe_send(smtp_obj, email_list, sender, subject, content, ip, port, password, key, main_config_id, run_timestamp)
+                single_history_list, single_excel_data_list = safe_send(smtp_obj, email_list, sender, subject, content, ip, port, password, key, main_config_id, run_timestamp, attachment_list)
                 history_list.extend(single_history_list)
                 excel_data_list.extend(single_excel_data_list)
         else:
@@ -189,7 +195,8 @@ def send_mail(app_config_info, main_config_info):
                 if key in match_dict:
                     email_list = match_dict[key]
                     split_path = os.path.join(split_dir, f'{clean_file_name(key)}_{send_excel_name}_.xlsx')
-                    single_history_list, single_excel_data_list = safe_send(smtp_obj, email_list, sender, subject, content, ip, port, password, key, main_config_id, run_timestamp, [split_path])
+                    all_attachment_list = [split_path] + attachment_list
+                    single_history_list, single_excel_data_list = safe_send(smtp_obj, email_list, sender, subject, content, ip, port, password, key, main_config_id, run_timestamp, all_attachment_list)
                     history_list.extend(single_history_list)
                     excel_data_list.extend(single_excel_data_list)
         session = Session()

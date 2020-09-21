@@ -2,11 +2,11 @@ import os
 import openpyxl
 
 class Report:
-    def __init__(self, result_workbook, filter_workbook, file_dir, file_name, header_row, sheet_name, field_list, result_field_list, merge_field_list, centre_company_dict, code_department_dict, last_file_dir=None, company_index=1, is_save_all=True, prefix=''):
+    def __init__(self, filter_workbook, file_dir, file_name, header_row, sheet_name, field_list, result_field_list, merge_field_list, centre_company_dict, code_department_dict, last_file_dir=None, company_index=1, is_save_all=True, prefix=''):
         self.sheet_name = sheet_name
         self.file_dir = file_dir
         self.origin_file_path = os.path.join(file_dir, "origin", file_name)
-        self.result_workbook = result_workbook
+        self.result_file_path = os.path.join(file_dir, "result", "稽核处结果表.xlsx")
         self.filter_workbook = filter_workbook
         self.filter_sheet_name = prefix + file_name.split(".")[0]
         self.last_file_path = os.path.join(last_file_dir, "稽核处结果表.xlsx") if last_file_dir else None
@@ -27,9 +27,9 @@ class Report:
             target_index = field_list.index(target_field)
             target_list.append([i.value for i in column_value_list[target_index][header_row:]])
         if len(target_list) == 1:
-            target = [str(i) if i else i for i in target_list[0]]
+            target = [str(i) if i!=None else "" for i in target_list[0]]
         else:
-            target = [[str(j) if j else j for j in i] for i in zip(*target_list)]
+            target = [[str(j) if j!=None else "" for j in i] for i in zip(*target_list)]
         return target
 
     @staticmethod
@@ -39,7 +39,7 @@ class Report:
         key_list = Report.generate_key_value(column_value_list, field_list, key_field_list, header_row)
         value_list = Report.generate_key_value(column_value_list, field_list, value_field_list, header_row)
         data_dict = dict(zip(key_list, value_list))
-        data_dict.pop(None, None)
+        data_dict.pop("", None)
         return data_dict
 
     @staticmethod
@@ -109,9 +109,12 @@ class Report:
         return []
 
     def save(self, result_list):
-        sheet = self.result_workbook.create_sheet(self.sheet_name, -1)
+        workbook = openpyxl.load_workbook(self.result_file_path, data_only=True)
+        sheet = workbook.create_sheet(self.sheet_name, -1)
         for result in result_list:
             sheet.append(result)
+        workbook.save(self.result_file_path)
+        workbook.close()
 
     def filter_save(self, data_list, order_field_list):
         sheet = self.filter_workbook.create_sheet(self.filter_sheet_name, -1)

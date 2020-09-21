@@ -265,6 +265,11 @@ class Report_11(Report_7):
 
 class Report_12(Report):
 
+    def fix_data_list(self, data_list, order_field_list):
+        print(order_field_list)
+        order_field_list[0] = "公司名称"
+        print(order_field_list)
+
     def replace_company(self, data_list):
         pass
 

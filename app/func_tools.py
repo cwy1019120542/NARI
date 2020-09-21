@@ -160,7 +160,7 @@ def save_file(request_parameter, request_file, is_reset, file_dir, new_file_name
         file.save(os.path.join(file_dir, file_name))
     return True, response(True, 200, "成功", return_file_name)
 
-def file_resource(resource_group, file_dir, request_method, request_parameter, request_file, file_type="excel"):
+def file_resource(resource_group, file_dir, request_method, request_parameter, request_file, file_type="excel", file_path=None, is_reset=True):
     is_success, return_data = resource_limit(resource_group)
     if not is_success:
         return return_data
@@ -171,18 +171,24 @@ def file_resource(resource_group, file_dir, request_method, request_parameter, r
         file_path = os.path.join(file_dir, os.listdir(file_dir)[0])
         return return_file(file_path)
     elif request_method == 'POST' or request_method == 'PUT':
-        return save_file(request_parameter, request_file, True, file_dir, None, file_type)[1]
+        return save_file(request_parameter, request_file, is_reset, file_dir, None, file_type)[1]
     elif request_method == 'DELETE':
-        if is_exists:
-            file_list = os.listdir(file_dir)
-            if file_list:
-                for file in file_list:
-                    os.remove(os.path.join(file_dir, file))
-                return response(True, 200, "成功")
+        if file_path:
+            if not os.path.exists(file_path):
+                return response(False, 404, "资源不存在")
+            os.remove(file_path)
+            return response(True, 204, "成功")
+        else:
+            if is_exists:
+                file_list = os.listdir(file_dir)
+                if file_list:
+                    for file in file_list:
+                        os.remove(os.path.join(file_dir, file))
+                    return response(True, 204, "成功")
+                else:
+                    return response(False, 404, "请求的资源不存在")
             else:
                 return response(False, 404, "请求的资源不存在")
-        else:
-            return response(False, 404, "请求的资源不存在")
 
 def resource_manage(resource_group, request_method, request_args, request_json, parameter):
     is_success, return_data = resource_limit(resource_group)
@@ -326,10 +332,6 @@ def get_match_dict(config_files_dir, main_config_id):
     match_dict = {}
     for data in total_data_list[1:]:
         target = data[0]
-        if target:
-            header_target = target
-        else:
-            target = header_target
         email = data[1]
         if not email:
             continue
@@ -351,7 +353,7 @@ def smtp_send_mail(smtp_obj, sender, receiver, subject, content, attachment_list
     msg['From'] = sender
     msg['To'] = receiver
     msg['Date'] = formatdate(localtime=True)
-    text_plain = MIMEText(content, 'plain', 'utf-8')
+    text_plain = MIMEText(content, 'html', 'utf-8')
     msg.attach(text_plain)
     for attachment in attachment_list:
         sendfile = open(attachment, 'rb').read()
