@@ -5,6 +5,7 @@ import smtplib
 import zipfile
 import openpyxl
 import random
+import re
 import shutil
 from urllib.parse import quote
 from sqlalchemy import and_
@@ -19,6 +20,12 @@ from functools import wraps
 from .extention import db, redis, celery
 from .models import User, MainConfig, SendConfig, ReceiveConfig
 from .parameter_config import accept_file_type
+
+
+def clean_file_name(file_name):
+    sub_list = r"[/\\\:\*\?\"\<\>\|]"
+    new_file_name = re.sub(sub_list, '_', str(file_name))
+    return new_file_name
 
 
 def to_xlsx(file_path):
@@ -136,13 +143,13 @@ def save_file(request_parameter, request_file, is_reset, file_dir, new_file_name
     file_name = file.filename.strip('"')
     if not file_name:
         return False, response(False, 400, "参数错误")
-    file_prefix, file_suffix = file_name.split(".")
+    file_prefix, file_suffix = os.path.splitext(file_name)
     if file_type == "excel":
         if not file_name.endswith(accept_file_type):
             return False, response(False, 400, "文件格式错误")
         return_file_name = f"{file_prefix}.xlsx"
         if new_file_name:
-            file_name = f"{new_file_name}.{file_suffix}"
+            file_name = new_file_name + file_suffix
             file_prefix = new_file_name
             return_file_name = f"{new_file_name}.xlsx"
         file_path = os.path.join(file_dir, file_name)
@@ -155,7 +162,7 @@ def save_file(request_parameter, request_file, is_reset, file_dir, new_file_name
     elif file_type == "*":
         return_file_name = file_name
         if new_file_name:
-            file_name = f"{new_file_name}.{file_suffix}"
+            file_name = new_file_name + file_suffix
             return_file_name = file_name
         file.save(os.path.join(file_dir, file_name))
     return True, response(True, 200, "成功", return_file_name)

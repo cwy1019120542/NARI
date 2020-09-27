@@ -2,9 +2,10 @@ import os
 import shutil
 from datetime import datetime
 from flask import Blueprint, request, current_app
-from ..func_tools import is_login, to_xlsx, response, get_run_config, create_task_id, save_file, parameter_check
+from ..func_tools import is_login, to_xlsx, response, get_run_config, create_task_id, save_file, parameter_check, return_zip
 from ..parameter_config import check_file_dict
 from ..tasks.generate_report import generate_report
+from ..models import User
 
 report_blueprint = Blueprint("report", __name__)
 
@@ -67,5 +68,12 @@ def start(user_id):
 @is_login
 def stop(user_id):
     pass
+
+@report_blueprint.route('/file/<date>', methods=['GET'])
+@is_login
+def report_file(user_id, date):
+    zip_path = os.path.join(current_app.config['REPORT_FILES_DIR'], str(user_id), date, '稽核处文件.zip')
+    file_dir = os.path.join(current_app.config['REPORT_FILES_DIR'], str(user_id), date, "result")
+    return return_zip([(User, user_id, None)], zip_path, file_dir)
 
 

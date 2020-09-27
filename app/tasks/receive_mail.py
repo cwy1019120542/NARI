@@ -16,7 +16,7 @@ from email.header import decode_header
 from email.utils import parseaddr
 from ..extention import celery, Session, receive_logger, redis
 from ..parameter_config import accept_file_type
-from ..func_tools import get_match_dict, get_file_path, response, get_header_row, get_column_number, smtp_send_mail, send_multi_mail, to_xlsx
+from ..func_tools import get_match_dict, get_file_path, response, get_header_row, get_column_number, smtp_send_mail, send_multi_mail, to_xlsx, clean_file_name
 
 def generate_log(main_config_id, level, message):
     getattr(receive_logger, level)(' '.join(["main_config_id", str(main_config_id), message]))
@@ -83,6 +83,10 @@ def receive_mail(app_config_info, main_config_info):
         redis.delete(f"{main_config_id}_receive_log")
         generate_log(main_config_id, "info", f"收邮件任务开始")
         config_files_dir = app_config_info['CONFIG_FILES_DIR']
+        file_dir = os.path.join(config_files_dir, str(main_config_id), "receive_excel")
+        if os.path.exists(file_dir):
+            shutil.rmtree(file_dir)
+        os.makedirs(file_dir)
         username = main_config_info['email']
         password = main_config_info['password']
         receive_config_info = main_config_info["receive_config_info"]
@@ -125,10 +129,6 @@ def receive_mail(app_config_info, main_config_info):
         error_format_target_list = set()
         no_attachment_target_list = set()
         generate_log(main_config_id, "info", f"mail_count {mail_count}")
-        file_dir = os.path.join(config_files_dir, str(main_config_id), "receive_excel")
-        if os.path.exists(file_dir):
-            shutil.rmtree(file_dir)
-        os.makedirs(file_dir)
         history_list = []
         excel_data_list = []
         for i in range(mail_count, 0, -1):
@@ -167,47 +167,49 @@ def receive_mail(app_config_info, main_config_info):
                 if check_list:
                     generate_log(main_config_id, "info", f"{from_email} {new_match_dict.get(from_email)} 重复处理")
                     continue
-            if target_subject in subject:
-                generate_log(main_config_id, "info", f"{from_email} {subject} {msg_timestamp} 主题符合")
-                for part in msg.walk():
-                    file_name = part.get_filename()
-                    if file_name:
-                        h = email.header.Header(file_name)
-                        dh = email.header.decode_header(h)
-                        filename = dh[0][0]
-                        if dh[0][1]:
-                            filename = decode_str(str(filename, dh[0][1]))
-                            if not filename.endswith(accept_file_type):
-                                if match_exists:
-                                    for target in target_group:
-                                        if target in target_list:
-                                            error_format_target_list.add(target)
-                                generate_log(main_config_id, "error", f"filename {filename} 格式不合法")
-                                continue
-                            generate_log(main_config_id, "info", f"filename {filename} 符合条件")
-                            data = part.get_payload(decode=True)
-                            file_path = os.path.join(file_dir, f'{target_group_str}_{filename}')
-                            with open(file_path, 'wb') as f:
-                                f.write(data)
-                            if not filename.endswith('.xlsx'):
-                                to_xlsx(file_path)
+            for part in msg.walk():
+                file_name = part.get_filename()
+                if file_name:
+                    h = email.header.Header(file_name)
+                    dh = email.header.decode_header(h)
+                    filename = dh[0][0]
+                    if dh[0][1]:
+                        filename = decode_str(str(filename, dh[0][1]))
+                        if target_subject not in filename:
+                            continue
+                        if not filename.endswith(accept_file_type):
                             if match_exists:
                                 for target in target_group:
                                     if target in target_list:
-                                        target_list.remove(target)
-                                    if target in no_attachment_target_list:
-                                        no_attachment_target_list.remove(target)
-                                    if target in error_format_target_list:
-                                        error_format_target_list.remove(target)
-                                history_list.append(ReceiveHistory(email=from_email, target=target_group_str, create_timestamp=run_timestamp, main_config_id=main_config_id, is_success=True, message="success"))
-                                excel_data_list.append([target_group_str, from_email, "成功"])
-                    else:
+                                        error_format_target_list.add(target)
+                            generate_log(main_config_id, "error", f"filename {filename} 格式不合法")
+                            continue
+                        generate_log(main_config_id, "info", f"filename {filename} 符合条件")
+                        data = part.get_payload(decode=True)
+                        new_file_name = clean_file_name(f'{target_group_str}_{filename}')
+                        file_path = os.path.join(file_dir, new_file_name)
+                        with open(file_path, 'wb') as f:
+                            f.write(data)
+                        if not filename.endswith('.xlsx'):
+                            to_xlsx(file_path)
                         if match_exists:
                             for target in target_group:
                                 if target in target_list:
-                                    no_attachment_target_list.add(target)
-            else:
-                generate_log(main_config_id, "info", f"{from_email} {subject} {msg_timestamp} 主题不符合")
+                                    target_list.remove(target)
+                                if target in no_attachment_target_list:
+                                    no_attachment_target_list.remove(target)
+                                if target in error_format_target_list:
+                                    error_format_target_list.remove(target)
+                            history_list.append(ReceiveHistory(email=from_email, target=target_group_str,
+                                                               create_timestamp=run_timestamp,
+                                                               main_config_id=main_config_id, is_success=True,
+                                                               message="success"))
+                            excel_data_list.append([target_group_str, from_email, "成功"])
+                else:
+                    if match_exists:
+                        for target in target_group:
+                            if target in target_list:
+                                no_attachment_target_list.add(target)
         # pop_obj.quit()
         if match_exists:
             remind_email_list = []

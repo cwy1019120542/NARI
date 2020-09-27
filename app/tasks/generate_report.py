@@ -64,42 +64,42 @@ def generate_report(file_dir, code_file_path, last_file_dir, last_year_file_dir)
              ["序号", "公司名称", "在制品余额 万元", "项目个数 个"],
              [], centre_company_dict, code_department_dict,
              last_file_dir=None).start()
-    Report_6(filter_workbook1, file_dir, f"{check_file_dict['product_cost_excel']}.xlsx", 1, "生产成本长期挂账未结转情况统计表",
-             ["公司代码", "利润中心", "金额", "2-3年", "3-4年", "4-5年", "5年以上"],
-             ["序号", "公司名称", "本月成本挂账总额", "年初成本挂账总额", "总额较年初增减额", "总额较年初变化幅度(%)", "本月挂账2年以上金额", "年初挂账2年以上金额", "挂账两年以上较年初增减额", "挂账2年以上较年初变化幅度(%)"],
-             ["本月成本挂账总额", "本月挂账2年以上金额"], centre_company_dict, code_department_dict,
-             last_file_dir=last_year_file_dir, is_save_all=False).start()
-    Report_7(filter_workbook1, file_dir, f"{check_file_dict['pay_cost_excel']}.xlsx", 1, "挂账一年以上应付项目暂估情况分析",
-             ["利润中心", "金额", "1-2年", "2-3年", "3年以上"],
-             ["序号", "公司名称", "本月合计金额", "年初合计金额", "合计金额增减变化", "合计金额增降幅 %", "本月1年以上金额", "年初1年以上金额", "1年以上金额增长额", "1年以上金额增降幅 %"],
-             ["本月合计金额", "本月1年以上金额"], centre_company_dict, code_department_dict,
-             last_file_dir=last_year_file_dir).start()
+    # Report_6(filter_workbook1, file_dir, f"{check_file_dict['product_cost_excel']}.xlsx", 1, "生产成本长期挂账未结转情况统计表",
+    #          ["公司代码", "利润中心", "金额", "2-3年", "3-4年", "4-5年", "5年以上"],
+    #          ["序号", "公司名称", "本月成本挂账总额", "年初成本挂账总额", "总额较年初增减额", "总额较年初变化幅度(%)", "本月挂账2年以上金额", "年初挂账2年以上金额", "挂账两年以上较年初增减额", "挂账2年以上较年初变化幅度(%)"],
+    #          ["本月成本挂账总额", "本月挂账2年以上金额"], centre_company_dict, code_department_dict,
+    #          last_file_dir=last_year_file_dir, is_save_all=False).start()
+    # Report_7(filter_workbook1, file_dir, f"{check_file_dict['pay_cost_excel']}.xlsx", 1, "挂账一年以上应付项目暂估情况分析",
+    #          ["利润中心", "金额", "1-2年", "2-3年", "3年以上"],
+    #          ["序号", "公司名称", "本月合计金额", "年初合计金额", "合计金额增减变化", "合计金额增降幅 %", "本月1年以上金额", "年初1年以上金额", "1年以上金额增长额", "1年以上金额增降幅 %"],
+    #          ["本月合计金额", "本月1年以上金额"], centre_company_dict, code_department_dict,
+    #          last_file_dir=last_year_file_dir).start()
     filter_workbook1.save(os.path.join(result_dir, "稽核处中间表1.xlsx"))
     filter_workbook1.close()
-    filter_workbook2 = openpyxl.Workbook()
-    Report_8(filter_workbook2, file_dir, f"{check_file_dict['pay_receive_excel']}.xlsx", 1, "挂账一年以上应付原材料暂估情况分析",
-             ["利润中心", "金额", "1-2年", "2-3年", "3年以上"],
-             ["序号", "公司名称", "本月合计金额", "年初合计金额", "合计金额增减变化", "合计金额增降幅 %", "本月1年以上金额", "年初1年以上金额", "1年以上金额增长额", "1年以上金额增降幅 %"],
-             ["本月合计金额", "本月1年以上金额"], centre_company_dict, code_department_dict,
-             last_file_dir=last_year_file_dir).start()
-    filter_workbook2.save(os.path.join(result_dir, "稽核处中间表2.xlsx"))
-    filter_workbook2.close()
+    # filter_workbook2 = openpyxl.Workbook()
+    # Report_8(filter_workbook2, file_dir, f"{check_file_dict['pay_receive_excel']}.xlsx", 1, "挂账一年以上应付原材料暂估情况分析",
+    #          ["利润中心", "金额", "1-2年", "2-3年", "3年以上"],
+    #          ["序号", "公司名称", "本月合计金额", "年初合计金额", "合计金额增减变化", "合计金额增降幅 %", "本月1年以上金额", "年初1年以上金额", "1年以上金额增长额", "1年以上金额增降幅 %"],
+    #          ["本月合计金额", "本月1年以上金额"], centre_company_dict, code_department_dict,
+    #          last_file_dir=last_year_file_dir).start()
+    # filter_workbook2.save(os.path.join(result_dir, "稽核处中间表2.xlsx"))
+    # filter_workbook2.close()
     filter_workbook3 = openpyxl.Workbook()
-    Report_9(filter_workbook3, file_dir, f"{check_file_dict['pre_pay_excel']}.xlsx", 1, "挂账一年以上预付账款情况",
-             ["利润中心", "金额", "1-2年", "2-3年", "3-4年", "4-5年", "5年以上"],
-             ["序号", "公司名称", "本月合计金额", "年初合计金额", "合计金额增减变化", "合计金额增降幅 %", "本月1年以上金额", "年初1年以上金额", "1年以上金额增长额", "1年以上金额增降幅 %"],
-             ["本月合计金额", "本月1年以上金额"], centre_company_dict, code_department_dict,
-             last_file_dir=last_year_file_dir).start()
-    Report_10(filter_workbook3, file_dir, f"{check_file_dict['other_receive_excel']}.xlsx", 1, "挂账三年以上其他应收账款情况",
-             ["利润中心", "本币金额", "3-4年", "4-5年", "5年以上"],
-             ["序号", "公司名称", "本月合计金额", "年初合计金额", "合计金额增减变化", "合计金额增降幅 %", "本月3年以上金额", "年初3年以上金额", "3年以上金额增长额", "3年以上金额增降幅 %"],
-             ["本月合计金额", "本月3年以上金额"], centre_company_dict, code_department_dict,
-             last_file_dir=last_year_file_dir).start()
-    Report_11(filter_workbook3, file_dir, f"{check_file_dict['other_pay_excel']}.xlsx", 1, "挂账三年以上其他应付账款情况",
-              ["利润中心", "余额", "3-4年", "4-5年", "5年以上"],
-              ["序号", "公司名称", "本月合计金额", "年初合计金额", "合计金额增减变化", "合计金额增降幅 %", "本月3年以上金额", "年初3年以上金额", "3年以上金额增长额", "3年以上金额增降幅 %"],
-              ["本月合计金额", "本月3年以上金额"], centre_company_dict, code_department_dict,
-              last_file_dir=last_year_file_dir).start()
+    # Report_9(filter_workbook3, file_dir, f"{check_file_dict['pre_pay_excel']}.xlsx", 1, "挂账一年以上预付账款情况",
+    #          ["利润中心", "金额", "1-2年", "2-3年", "3-4年", "4-5年", "5年以上"],
+    #          ["序号", "公司名称", "本月合计金额", "年初合计金额", "合计金额增减变化", "合计金额增降幅 %", "本月1年以上金额", "年初1年以上金额", "1年以上金额增长额", "1年以上金额增降幅 %"],
+    #          ["本月合计金额", "本月1年以上金额"], centre_company_dict, code_department_dict,
+    #          last_file_dir=last_year_file_dir).start()
+    # Report_10(filter_workbook3, file_dir, f"{check_file_dict['other_receive_excel']}.xlsx", 1, "挂账三年以上其他应收账款情况",
+    #          ["利润中心", "本币金额", "3-4年", "4-5年", "5年以上"],
+    #          ["序号", "公司名称", "本月合计金额", "年初合计金额", "合计金额增减变化", "合计金额增降幅 %", "本月3年以上金额", "年初3年以上金额", "3年以上金额增长额", "3年以上金额增降幅 %"],
+    #          ["本月合计金额", "本月3年以上金额"], centre_company_dict, code_department_dict,
+    #          last_file_dir=last_year_file_dir).start()
+    # Report_11(filter_workbook3, file_dir, f"{check_file_dict['other_pay_excel']}.xlsx", 1, "挂账三年以上其他应付账款情况",
+    #           ["利润中心", "余额", "3-4年", "4-5年", "5年以上"],
+    #           ["序号", "公司名称", "本月合计金额", "年初合计金额", "合计金额增减变化", "合计金额增降幅 %", "本月3年以上金额", "年初3年以上金额", "3年以上金额增长额", "3年以上金额增降幅 %"],
+    #           ["本月合计金额", "本月3年以上金额"], centre_company_dict, code_department_dict,
+    #           last_file_dir=last_year_file_dir).start()
     Report_12(filter_workbook3, file_dir, f"{check_file_dict['receive_excel']}.xlsx", 2, "内部关联交易-收入确认与收货不同步",
               ["单位名称", "销售确认收入金额", "采购收货金额"],
               ["序号", "公司名称", "销售确认收入金额", "采购收货金额", "差异金额"],

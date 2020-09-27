@@ -81,6 +81,7 @@ class SendConfig(db.Model):
     user_id = db.Column(db.Integer)
     subject = db.Column(db.String(50))
     content = db.Column(db.Text)
+    split_type = db.Column(db.Integer, default=0)
     sheet = db.Column(db.Text)
     field_row = db.Column(db.String(50))
     split_field = db.Column(db.String(50))
@@ -104,6 +105,7 @@ class SendConfig(db.Model):
                 "user_id": self.user_id,
                 "subject": self.subject,
                 "content": self.content,
+                "split_type": self.split_type,
                 "sheet": self.sheet,
                 "field_row": self.field_row,
                 "split_field": self.split_field,
@@ -230,6 +232,7 @@ class ReceiveHistory(db.Model):
 class SapConfig(db.Model):
     __tablename__ = "sap_config"
     id = db.Column(db.Integer, primary_key=True)
+    config_type = db.Column(db.Integer)
     user_id = db.Column(db.Integer)
     account = db.Column(db.String(50))
     password = db.Column(db.String(100))
@@ -243,6 +246,7 @@ class SapConfig(db.Model):
     def get_info(self):
         return {
             "id": self.id,
+            "config_type": self.config_type,
             "user_id": self.user_id,
             "account": self.account,
             "password": self.password,

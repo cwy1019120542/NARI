@@ -3,7 +3,7 @@ import shutil
 from flask import Blueprint, request, current_app
 from ..models import SapConfig, User
 from ..parameter_config import sap_config_parameter, sap_log_parameter
-from ..func_tools import resource_manage, is_login, response, resource_limit, parameter_check, return_file, file_resource
+from ..func_tools import resource_manage, is_login, response, resource_limit, parameter_check, return_file, file_resource, return_zip
 from ..extention import redis
 
 sap_config_blueprint = Blueprint('sap_config', __name__)

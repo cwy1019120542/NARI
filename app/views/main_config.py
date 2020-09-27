@@ -117,7 +117,7 @@ def stop(user_id, main_config_id):
         celery.control.revoke(receive_task_id.decode(), terminate=True)
     return response(True, 200, "成功")
 
-@main_config_blueprint.route('/<int:main_config_id>/template_excel', methods=["GET", "POST", "PUT"])
+@main_config_blueprint.route('/<int:main_config_id>/template_excel', methods=["GET", "POST", "PUT", "DELETE"])
 @is_login
 def template_excel(user_id, main_config_id):
     config_files_dir = current_app.config['CONFIG_FILES_DIR']
