@@ -43,7 +43,7 @@ class Report_2(Report_1):
         for data in data_list:
             company = data[1]
             amount = float(data[3]) if data[3] else 0
-            if data[4] == "国网系统内-集团内":
+            if data[4] == "国网系统内-集团内" or data[4] == "国网系统内-集团外":
                 data_dict[company] = data_dict[company] + amount if company in data_dict else amount
         return data_dict, {}
 
@@ -101,7 +101,7 @@ class Report_4(Report_3):
             company = data[1]
             amount = float(data[3]) if data[3] else 0
             year_amount = sum(float(i) if i else 0 for i in data[5:8])
-            if data[4] == "国网系统内-集团内":
+            if data[4] == "国网系统内-集团内" or data[4] == "国网系统内-集团外":
                 data_dict[company] = (data_dict[company][0] + amount, data_dict[company][1] + year_amount) if company in data_dict else (amount, year_amount)
         return data_dict, {}
 

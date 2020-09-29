@@ -188,8 +188,8 @@ class UpdateMessage(db.Model):
 class SendHistory(db.Model):
     __tablename__ = 'send_history'
     id = db.Column(db.Integer, primary_key=True)
-    target = db.Column(db.String(50))
-    email = db.Column(db.String(100))
+    target = db.Column(db.String(1000))
+    email = db.Column(db.String(1000))
     main_config_id = db.Column(db.Integer)
     create_timestamp = db.Column(db.Integer)
     change_timestamp = db.Column(db.Integer)
@@ -210,8 +210,8 @@ class SendHistory(db.Model):
 class ReceiveHistory(db.Model):
     __tablename__ = 'receive_history'
     id = db.Column(db.Integer, primary_key=True)
-    target = db.Column(db.String(50))
-    email = db.Column(db.String(100))
+    target = db.Column(db.String(1000))
+    email = db.Column(db.String(1000))
     main_config_id = db.Column(db.Integer)
     create_timestamp = db.Column(db.Integer)
     change_timestamp = db.Column(db.Integer)
