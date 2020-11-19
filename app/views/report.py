@@ -1,8 +1,9 @@
 import os
 import shutil
+import openpyxl
 from datetime import datetime
 from flask import Blueprint, request, current_app
-from ..func_tools import is_login, to_xlsx, response, get_run_config, create_task_id, save_file, parameter_check, return_zip
+from ..func_tools import is_login, to_xlsx, response, get_run_config, create_task_id, save_file, parameter_check, return_zip, get_report_data, connect_part_data, judge_up_down, handle_num, generate_report_word, return_file
 from ..parameter_config import check_file_dict
 from ..tasks.generate_report import generate_report
 from ..models import User
@@ -60,7 +61,7 @@ def start(user_id):
     last_year_date_str = f"{year-1}-12"
     last_year_file_dir = os.path.join(REPORT_FILES_DIR, str(user_id), last_year_date_str, "result")
     last_file_dir = os.path.join(REPORT_FILES_DIR, str(user_id), last_date_str, "result")
-    generate_report.apply_async(kwargs={"file_dir": file_dir, "code_file_path": code_file_path, "last_file_dir": last_file_dir, "last_year_file_dir": last_year_file_dir},
+    generate_report.apply_async(kwargs={"file_dir": file_dir, "code_file_path": code_file_path, "last_file_dir": last_file_dir, "last_year_file_dir": last_year_file_dir, "date": now_date_str},
                               task_id=task_id)
     return response(True, 202, "成功")
 
@@ -76,4 +77,15 @@ def report_file(user_id, date):
     file_dir = os.path.join(current_app.config['REPORT_FILES_DIR'], str(user_id), date, "result")
     return return_zip([(User, user_id, None)], zip_path, file_dir)
 
-
+@report_blueprint.route('/word/<date>', methods=['GET'])
+@is_login
+def report_word(user_id, date):
+    request_args = request.args
+    is_success, return_data = parameter_check(request_args, [("number", int, True, 11)])
+    number = 5 if not is_success else return_data["number"]
+    file_path = os.path.join(current_app.config['REPORT_FILES_DIR'], str(user_id), date, "result", "稽核处结果表.xlsx")
+    result_path = os.path.join(current_app.config['REPORT_FILES_DIR'], str(user_id), date, "result", "报告.docx")
+    is_success, return_data = generate_report_word(number, file_path, date, result_path)
+    if not is_success:
+        return return_data
+    return return_file(result_path)

@@ -20,10 +20,16 @@ from functools import wraps
 from .extention import db, redis, celery
 from .models import User, MainConfig, SendConfig, ReceiveConfig
 from .parameter_config import accept_file_type
+import sys
+sys.path.append('/usr/local/lib/python3.8/dist-packages/python_docx-0.8.10-py3.8.egg')
+import docx
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Cm, Pt, Inches
+from docx.oxml.ns import qn
 
 
 def clean_file_name(file_name):
-    sub_list = r"[/\\\:\*\?\"\<\>\|]"
+    sub_list = r"[/\\\:\*\?\"\<\>\|\[\]《》\（\）-]"
     new_file_name = re.sub(sub_list, '_', str(file_name))
     return new_file_name
 
@@ -140,7 +146,7 @@ def save_file(request_parameter, request_file, is_reset, file_dir, new_file_name
     else:
         os.makedirs(file_dir)
     file = request_file.get(request_parameter)
-    file_name = file.filename.strip('"')
+    file_name = clean_file_name(file.filename.strip('"'))
     if not file_name:
         return False, response(False, 400, "参数错误")
     file_prefix, file_suffix = os.path.splitext(file_name)
@@ -167,7 +173,7 @@ def save_file(request_parameter, request_file, is_reset, file_dir, new_file_name
         file.save(os.path.join(file_dir, file_name))
     return True, response(True, 200, "成功", return_file_name)
 
-def file_resource(resource_group, file_dir, request_method, request_parameter, request_file, file_type="excel", file_path=None, is_reset=True):
+def file_resource(resource_group, file_dir, request_method, request_parameter, request_file, file_type="excel", file_path=None, is_reset=True, new_file_name=None):
     is_success, return_data = resource_limit(resource_group)
     if not is_success:
         return return_data
@@ -178,7 +184,7 @@ def file_resource(resource_group, file_dir, request_method, request_parameter, r
         file_path = os.path.join(file_dir, os.listdir(file_dir)[0])
         return return_file(file_path)
     elif request_method == 'POST' or request_method == 'PUT':
-        return save_file(request_parameter, request_file, is_reset, file_dir, None, file_type)[1]
+        return save_file(request_parameter, request_file, is_reset, file_dir, new_file_name, file_type)[1]
     elif request_method == 'DELETE':
         if file_path:
             if not os.path.exists(file_path):
@@ -339,7 +345,7 @@ def get_match_dict(config_files_dir, main_config_id):
     match_dict = {}
     for data in total_data_list[1:]:
         target = data[0]
-        email = data[1]
+        email = data[1].strip() if data[1] else None
         if not email:
             continue
         if target in match_dict:
@@ -368,7 +374,7 @@ def smtp_send_mail(smtp_obj, sender, receiver, subject, content, attachment_list
         text_att["Content-Type"] = 'application/octet-stream'
         file_dir, file_name = os.path.split(attachment)
         # text_att["Content-Disposition"] = f'attachment; filename="{file_name}"'
-        text_att.add_header('Content-Disposition', 'attachment', filename=file_name)
+        text_att.add_header('Content-Disposition', 'attachment', filename=clean_file_name(file_name))
         msg.attach(text_att)
     smtp_obj.sendmail(sender, receiver, msg.as_string())
 
@@ -473,6 +479,242 @@ def return_target_file(resource_group, file_path):
         return response(False, 404, "资源不存在")
     else:
         return return_file(file_path)
+
+def handle_num(num):
+    f_num = float(num)
+    if f_num >= 10000 or f_num <= -10000:
+        return str(round(num / 10000, 2)) + "亿"
+    else:
+        return str(round(f_num, 2)) + "万"
+
+def get_report_data(workbook, sheet_name, sum_column_index, number, number_column_index, model=None):
+    sheet = workbook[sheet_name]
+    data_list = list(sheet.values)[1:]
+    sum_data = data_list.pop()
+    sum_list = [sum_data[i] for i in sum_column_index]
+    sort_index = number_column_index[-1]
+    data_list.sort(key=lambda x:float(str(x[sort_index] if x[sort_index] else 0).strip("%")), reverse=True)
+    number_data_list = data_list[:number]
+    part_data_list = [[i[j] for j in number_column_index] for i in number_data_list]
+    if model == 1:
+        model_amount = handle_num(sum(i[sort_index] for i in data_list if float(i[sort_index])>0))
+        return sum_list, part_data_list, model_amount
+    return sum_list, part_data_list
+
+def connect_part_data(part_data_list, format_str="{}（{}元）", amount_index=1, company_index=0, name_dict=None):
+    for part_data in part_data_list:
+        if amount_index != None:
+            amount_data = part_data[amount_index]
+            part_data[amount_index] = handle_num(amount_data)
+        company = part_data[company_index]
+        if company in name_dict:
+            part_data[company_index] = name_dict[company]
+    return "、".join([format_str.format(*i) for i in part_data_list])
+
+def judge_up_down(data, format_type=0):
+    if format_type == 0:
+        format_str = ("增加", "减少")
+        handle_data = handle_num(data)
+        compare_num = float(handle_data[:-1])
+    else:
+        format_str = ("增幅", "降幅")
+        handle_data = float(data.strip("%") if data else 0)
+        compare_num = handle_data
+    format_data = str(handle_data).strip("-")
+    if compare_num > 0:
+        return f"{format_str[0]}{format_data}"
+    else:
+        return f"{format_str[1]}{format_data}"
+
+def generate_rate(num1, num2):
+    return round(float(num1) * 100 / float(num2), 2)
+
+def generate_report_word(number, file_path, date, result_path):
+    name_workbook = openpyxl.load_workbook("/home/cwy/static_files/公司全称与简称对照表.xlsx")
+    name_sheet = name_workbook[name_workbook.sheetnames[0]]
+    name_dict = dict(i[:2] for i in name_sheet.values)
+    name_workbook.close()
+    year, month = date.split("-")
+    format_str_list = []
+    format_str_list.append(None)
+    format_str_list.append((month,))
+    workbook = openpyxl.load_workbook(file_path, data_only=True, read_only=True)
+    sheet_name_list = workbook.sheetnames
+    if len(sheet_name_list) < 18:
+        return False, response(False, 400, "sheet页不匹配，请重新运行")
+    sum_data_list1, part_data_list1, model_amount1 = get_report_data(workbook, "本月新增预开票情况统计表(全部)", [], number, [1, 4], model=1)
+    sum_data_list2, part_data_list2, model_amount2 = get_report_data(workbook, "本月新增预开票情况统计表(系统内)", [], number, [1, 4], model=1)
+    sum_data_list3, part_data_list3, model_amount3 = get_report_data(workbook, "本月新增滞后开票情况统计表(全部)", [], number, [1, 4], model=1)
+    sum_data_list4, part_data_list4, model_amount4 = get_report_data(workbook, "本月新增滞后开票情况统计表(系统内)", [], number, [1, 4], model=1)
+
+    format_str_list.append((month, model_amount1, model_amount2,
+                            connect_part_data(part_data_list1, name_dict=name_dict), connect_part_data(part_data_list2, name_dict=name_dict),
+                            model_amount3, model_amount4, connect_part_data(part_data_list3, name_dict=name_dict),
+                            connect_part_data(part_data_list4, name_dict=name_dict)))
+    format_str_list.append(None)
+    sum_data_list5, part_data_list5 = get_report_data(workbook, "已开票未确认收入(预开票)余额清理情况统计表(全部)", [2, 4, 5, 6, 8, 9],
+                                                      number, [1, 2])
+    sum_data_list6, part_data_list6 = get_report_data(workbook, "已开票未确认收入(预开票)余额清理情况统计表(系统内)", [2, 4, 5, 6, 8, 9],
+                                                      number, [1, 2])
+    format_str_list.append((month, handle_num(sum_data_list5[0]), judge_up_down(sum_data_list5[1]),
+                            judge_up_down(sum_data_list5[2], 1), handle_num(sum_data_list6[0]),
+                            generate_rate(sum_data_list6[0], sum_data_list5[0]),
+                            judge_up_down(sum_data_list6[1]),
+                            judge_up_down(sum_data_list6[2], 1)))
+    sum_data_list7, part_data_list7 = get_report_data(workbook, "已开票未确认收入(预开票)余额清理情况统计表(全部)", [],
+                                                      number, [1, 6])
+    sum_data_list8, part_data_list8 = get_report_data(workbook, "已开票未确认收入(预开票)余额清理情况统计表(系统内)", [],
+                                                      number, [1, 6])
+    format_str_list.append((connect_part_data(part_data_list5, name_dict=name_dict), handle_num(sum_data_list5[3]),
+                            judge_up_down(sum_data_list5[4]), judge_up_down(sum_data_list5[5], 1),
+                            connect_part_data(part_data_list7, name_dict=name_dict)))
+    format_str_list.append((connect_part_data(part_data_list6, name_dict=name_dict), handle_num(sum_data_list6[3]),
+                            judge_up_down(sum_data_list6[4]), judge_up_down(sum_data_list6[5], 1),
+                            connect_part_data(part_data_list8, name_dict=name_dict)))
+    format_str_list.append(None)
+    sum_data_list9, part_data_list9 = get_report_data(workbook, "已开票未确认收入(滞后开票)余额清理情况统计表(全部)", [2, 4, 5, 6, 8, 9],
+                                                      number, [1, 2])
+    sum_data_list10, part_data_list10 = get_report_data(workbook, "已开票未确认收入(滞后开票)余额清理情况统计表(系统内)", [2, 4, 5, 6, 8, 9],
+                                                        number, [1, 2])
+    format_str_list.append((month, handle_num(sum_data_list9[0]), judge_up_down(sum_data_list9[1]),
+                            judge_up_down(sum_data_list9[2], 1), handle_num(sum_data_list10[0]),
+                            generate_rate(sum_data_list10[0], sum_data_list9[0]),
+                            judge_up_down(sum_data_list10[1]),
+                            judge_up_down(sum_data_list10[2], 1)))
+    sum_data_list11, part_data_list11 = get_report_data(workbook, "已开票未确认收入(滞后开票)余额清理情况统计表(全部)", [],
+                                                        number, [1, 6])
+    sum_data_list12, part_data_list12 = get_report_data(workbook, "已开票未确认收入(滞后开票)余额清理情况统计表(系统内)", [],
+                                                        number, [1, 6])
+    format_str_list.append((connect_part_data(part_data_list9, name_dict=name_dict), handle_num(sum_data_list9[3]),
+                            judge_up_down(sum_data_list9[4]), judge_up_down(sum_data_list9[5], 1),
+                            connect_part_data(part_data_list11, name_dict=name_dict)))
+    format_str_list.append((connect_part_data(part_data_list10, name_dict=name_dict), handle_num(sum_data_list10[3]),
+                            judge_up_down(sum_data_list10[4]), judge_up_down(sum_data_list10[5], 1),
+                            connect_part_data(part_data_list12, name_dict=name_dict)))
+    format_str_list.extend([None, None, None, None])
+    sum_data_list13, part_data_list13 = get_report_data(workbook, "项目成本结转不彻底", [2],
+                                                        number, [1, 2])
+    format_str_list.append((month, handle_num(sum_data_list13[0]), connect_part_data(part_data_list13, name_dict=name_dict)))
+    format_str_list.extend([None, None])
+    sum_data_list14, part_data_list14 = get_report_data(workbook, "生产成本长期挂账未结转情况统计表", [6, 8, 9],
+                                                        number, [1, 6])
+    sum_data_list15, part_data_list15 = get_report_data(workbook, "生产成本长期挂账未结转情况统计表", [],
+                                                        number, [1, 6, 9])
+    format_str_list.append((month, handle_num(sum_data_list14[0]), judge_up_down(sum_data_list14[1]),
+                            judge_up_down(sum_data_list14[2], 1), connect_part_data(part_data_list14, name_dict=name_dict),
+                            connect_part_data(part_data_list15, "{}（{}元, {}）", name_dict=name_dict)))
+    format_str_list.extend([None, None, None])
+    sum_data_list16, part_data_list16 = get_report_data(workbook, "挂账一年以上应付项目暂估情况分析", [2, 4, 5, 6, 8, 9],
+                                                        number, [1, 2])
+    sum_data_list17, part_data_list17 = get_report_data(workbook, "挂账一年以上应付项目暂估情况分析", [],
+                                                        number, [1, 6])
+    format_str_list.append((month, handle_num(sum_data_list16[0]), judge_up_down(sum_data_list16[1]),
+                            judge_up_down(sum_data_list16[2], 1), connect_part_data(part_data_list16, name_dict=name_dict),
+                            handle_num(sum_data_list16[3]), judge_up_down(sum_data_list16[4]),
+                            judge_up_down(sum_data_list16[5], 1), connect_part_data(part_data_list17, name_dict=name_dict)))
+    format_str_list.extend([None, None])
+    sum_data_list18, part_data_list18 = get_report_data(workbook, "本月项目生产成本暂估比例异常(达20%以上)情况统计表", [3, 2, 6, 7],
+                                                        number, [1, 2])
+    sum_data_list19, part_data_list19 = get_report_data(workbook, "本月项目生产成本暂估比例异常(达20%以上)情况统计表", [],
+                                                        number, [1, 3])
+    format_str_list.append((
+                           month, sum_data_list18[0], handle_num(sum_data_list18[1]), judge_up_down(sum_data_list18[2]),
+                           judge_up_down(sum_data_list18[3], 1), connect_part_data(part_data_list18, name_dict=name_dict),
+                           connect_part_data(part_data_list19, "{}（{}个）", None, name_dict=name_dict)))
+    format_str_list.extend([None, None, None])
+    sum_data_list20, part_data_list20 = get_report_data(workbook, "挂账一年以上应付原材料暂估情况分析", [2, 4, 5, 6, 8, 9],
+                                                        number, [1, 6])
+    format_str_list.append((month, handle_num(sum_data_list20[0]), judge_up_down(sum_data_list20[1]),
+                            judge_up_down(sum_data_list20[2], 1), handle_num(sum_data_list20[3]),
+                            judge_up_down(sum_data_list20[4]), judge_up_down(sum_data_list20[5], 1),
+                            connect_part_data(part_data_list20, name_dict=name_dict)))
+    format_str_list.append(None)
+    sum_data_list21, part_data_list21 = get_report_data(workbook, "挂账一年以上预付账款情况", [6, 8, 9],
+                                                        number, [1, 6])
+    sum_data_list22, part_data_list22 = get_report_data(workbook, "挂账一年以上预付账款情况", [],
+                                                        number, [1, 8, 9])
+    format_str_list.append((month, handle_num(sum_data_list21[0]), judge_up_down(sum_data_list21[1]),
+                            judge_up_down(sum_data_list21[2], 1), connect_part_data(part_data_list21, name_dict=name_dict),
+                            connect_part_data(part_data_list22, "{}（{}元，{}）", name_dict=name_dict)))
+    format_str_list.append(None)
+    sum_data_list23, part_data_list23 = get_report_data(workbook, "挂账三年以上其他应收账款情况", [6, 8, 9],
+                                                        number, [1, 6])
+    sum_data_list24, part_data_list24 = get_report_data(workbook, "挂账三年以上其他应收账款情况", [],
+                                                        number, [1, 8, 9])
+    format_str_list.append((month, handle_num(sum_data_list23[0]), judge_up_down(sum_data_list23[1]),
+                            judge_up_down(sum_data_list23[2], 1), connect_part_data(part_data_list23, name_dict=name_dict),
+                            connect_part_data(part_data_list24, "{}（{}元，{}）", name_dict=name_dict)))
+    sum_data_list25, part_data_list25 = get_report_data(workbook, "挂账三年以上其他应付账款情况", [6, 8, 9],
+                                                        number, [1, 6])
+    format_str_list.append(None)
+    sum_data_list26, part_data_list26 = get_report_data(workbook, "挂账三年以上其他应付账款情况", [],
+                                                        number, [1, 8, 9])
+    format_str_list.append((month, handle_num(sum_data_list25[0]), judge_up_down(sum_data_list25[1]),
+                            judge_up_down(sum_data_list25[2], 1), connect_part_data(part_data_list25, name_dict=name_dict),
+                            connect_part_data(part_data_list26, "{}（{}元，{}）", name_dict=name_dict)))
+    format_str_list.extend([None, None, None])
+
+
+    sum_data_list27, part_data_list27 = get_report_data(workbook, "内部关联交易-收入确认与收货不同步", [2, 3, 5],
+                                                                      number, [1, 4])
+    format_str_list.append((month, sum_data_list27[2], handle_num(sum_data_list27[0]), handle_num(sum_data_list27[1]),
+                            connect_part_data(part_data_list27, name_dict=name_dict)))
+    format_str_list.append(None)
+    sum_data_list28, part_data_list28 = get_report_data(workbook, "内部关联交易-收入确认与开票不同步", [2, 3, 4, 5],
+                                                        number, [1, 2])
+    sum_data_list29, part_data_list29 = get_report_data(workbook, "内部关联交易-收入确认与开票不同步", [],
+                                                        number, [1, 4])
+    workbook.close()
+    format_str_list.append((month, handle_num(float(sum_data_list28[0]) + float(sum_data_list28[2])),
+                            int(sum_data_list28[1]) + int(sum_data_list28[3]), sum_data_list28[1], handle_num(sum_data_list28[0]),
+                            connect_part_data(part_data_list28, name_dict=name_dict), sum_data_list28[3], handle_num(sum_data_list28[2]),
+                            connect_part_data(part_data_list29, name_dict=name_dict)))
+    format_str_list.append(None)
+    document = docx.Document()
+    header_paragraph = document.add_paragraph()
+    header_run = header_paragraph.add_run(f"南瑞集团{year}年{month}月财务监督报告")
+    header_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    header_paragraph.paragraph_format.line_spacing = Pt(29)
+    header_paragraph.paragraph_format.space_after = Pt(0)
+    p1 = document.add_paragraph()
+    p1_run = p1.add_run("一、常规监督问题情况")
+    p1.paragraph_format.line_spacing = Pt(29)
+    p1.paragraph_format.space_after = Pt(0)
+    with open("/home/cwy/static_files/report_template.txt") as f:
+        data_list = f.readlines()
+        # print(len(data_list), len(format_str_list))
+        for data, format_str in zip(data_list, format_str_list):
+            # print(data.strip())
+            # print(format_str)
+            # print("*"*20)
+            if format_str:
+                data = data.format(*format_str)
+            p = document.add_paragraph()
+            if data.startswith(("（", "1", "2", "3", "4", "5", "6")):
+                p_run = p.add_run(data.strip())
+                p_run.bold = True
+                p_run.font.size = Pt(16)
+                p_run.font.name = '方正楷体_GBK'
+                p_run._element.rPr.rFonts.set(qn('w:eastAsia'), '方正楷体_GBK')
+            else:
+                p_run = p.add_run(data.strip())
+                p_run.font.size = Pt(16)
+                p_run.font.name = '仿宋_GB2312'
+                p_run._element.rPr.rFonts.set(qn('w:eastAsia'), '仿宋_GB2312')
+            p.paragraph_format.first_line_indent = Inches(0.5)
+            p.paragraph_format.line_spacing = Pt(29)
+            p.paragraph_format.space_after = Pt(0)
+    header_run.font.name = '黑体'
+    header_run._element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+    header_run.font.size = Pt(18)
+    header_run.bold = True
+    p1_run.bold = True
+    p1_run.font.name = '黑体'
+    p1_run._element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
+    p1_run.font.size = Pt(16)
+    document.save(result_path)
+    return True, True
+
 
 
 

@@ -43,9 +43,24 @@ class Report_2(Report_1):
         for data in data_list:
             company = data[1]
             amount = float(data[3]) if data[3] else 0
-            if data[4] == "国网系统内-集团内" or data[4] == "国网系统内-集团外":
+            if data[4].startswith("国网系统内"):
                 data_dict[company] = data_dict[company] + amount if company in data_dict else amount
         return data_dict, {}
+
+    def filter_save(self, data_list, order_field_list):
+        sheet = self.filter_workbook.create_sheet(self.filter_sheet_name, -1)
+        order_field_list.append("是否归属本部管理")
+        sheet.append(order_field_list)
+        for data in data_list[:]:
+            if data[4].startswith("国网系统内"):
+                company = data[self.company_index]
+                contre = data[self.contre_index]
+                is_manage = self.manage_dict.get(contre)
+                if is_manage == "是":
+                    data.append("是")
+                else:
+                    data.append("否")
+                sheet.append(data)
 
 class Report_3(Report):
 
@@ -101,16 +116,31 @@ class Report_4(Report_3):
             company = data[1]
             amount = float(data[3]) if data[3] else 0
             year_amount = sum(float(i) if i else 0 for i in data[5:8])
-            if data[4] == "国网系统内-集团内" or data[4] == "国网系统内-集团外":
+            if data[4].startswith("国网系统内"):
                 data_dict[company] = (data_dict[company][0] + amount, data_dict[company][1] + year_amount) if company in data_dict else (amount, year_amount)
         return data_dict, {}
+
+    def filter_save(self, data_list, order_field_list):
+        sheet = self.filter_workbook.create_sheet(self.filter_sheet_name, -1)
+        order_field_list.append("是否归属本部管理")
+        sheet.append(order_field_list)
+        for data in data_list[:]:
+            if data[4].startswith("国网系统内"):
+                company = data[self.company_index]
+                contre = data[self.contre_index]
+                is_manage = self.manage_dict.get(contre)
+                if is_manage == "是":
+                    data.append("是")
+                else:
+                    data.append("否")
+                sheet.append(data)
 
 class Report_5(Report):
 
     def fix_data_list(self, data_list, order_field_list):
         now_date_str = os.path.split(self.file_dir)[1]
         year, month = [int(i) for i in now_date_str.split('-')]
-        last_date = datetime(year=year, month=month, day=31)
+        last_date = datetime(year=year, month=month, day=30)
         remove_data_list = []
         for data_index, data in enumerate(data_list[:]):
             data_date_str = data[4]
@@ -266,15 +296,14 @@ class Report_11(Report_7):
 class Report_12(Report):
 
     def fix_data_list(self, data_list, order_field_list):
-        print(order_field_list)
         order_field_list[0] = "公司名称"
-        print(order_field_list)
 
     def replace_company(self, data_list):
         pass
 
     def merge_data(self, data_list):
         data_dict = {}
+        count_dict = {}
         for data in data_list:
             company = data[0]
             amount1 = float(data[1]) if data[1] else 0
@@ -282,7 +311,8 @@ class Report_12(Report):
             data_dict[company] = (
             data_dict[company][0] + amount1, data_dict[company][1] + amount2) if company in data_dict else (
             amount1, amount2)
-        return data_dict, {}
+            count_dict[company] = count_dict[company] + 1 if company in count_dict else 1
+        return data_dict, count_dict
 
     def get_result_list(self, data_dict, count_dict):
         result_list = []
@@ -290,15 +320,18 @@ class Report_12(Report):
             self.save_company_list.append(company)
             amount1, amount2 = data
             diff_amount = amount1 - amount2
-            result_list.append([company, Report.handle_num(amount1), Report.handle_num(amount2), Report.handle_num(diff_amount)])
+            count = count_dict[company]
+            result_list.append([company, Report.handle_num(amount1), Report.handle_num(amount2), Report.handle_num(diff_amount), count])
         result_list.sort(key=lambda x: x[3], reverse=True)
         sum_amount1 = 0
         sum_amount2 = 0
+        sum_count = 0
         for result_index, result in enumerate(result_list):
             sum_amount1 += result[1]
             sum_amount2 += result[2]
+            sum_count += result[4]
             result_list[result_index].insert(0, result_index+1)
-        result_list.append([None, "合计", sum_amount1, sum_amount2, sum_amount1 - sum_amount2])
+        result_list.append([None, "合计", sum_amount1, sum_amount2, sum_amount1 - sum_amount2, sum_count])
         return result_list
 
 class Report_13(Report):

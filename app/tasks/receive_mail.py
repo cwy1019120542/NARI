@@ -142,11 +142,15 @@ def receive_mail(app_config_info, main_config_info):
             if not msg['from'] or not msg['subject'] or not msg['date']:
                 generate_log(main_config_id, "info", f"信息缺失")
                 continue
-            from_email = decode_header(msg['from'])
-            from_email = decode_group(from_email)
-            subject_group = decode_header(msg['subject'])
-            subject = decode_group(subject_group)
-            msg_timestamp = getTimeStamp(msg['date'])
+            try:
+                from_email = decode_header(msg['from'])
+                from_email = decode_group(from_email)
+                subject_group = decode_header(msg['subject'])
+                subject = decode_group(subject_group)
+                msg_timestamp = getTimeStamp(msg['date'])
+            except:
+                generate_log(main_config_id, "error", f"subject parse fail")
+                continue
             if not msg_timestamp:
                 generate_log(main_config_id, "error", f"{from_email} {subject} {msg['date']} 时间无法解析")
                 continue
@@ -242,6 +246,11 @@ def receive_mail(app_config_info, main_config_info):
         if not is_success or not receive_excel_path_list:
             generate_log(main_config_id, "error", f"未收取到指定邮件")
         else:
+            result_dir = os.path.join(config_files_dir, str(main_config_id), "result_excel")
+            if os.path.exists(result_dir):
+                shutil.rmtree(result_dir)
+            os.makedirs(result_dir)
+            result_path = os.path.join(result_dir, result_excel_name)
             if not template_path:
                 generate_log(main_config_id, "info", f"没有提供模板")
                 result_list = []
@@ -282,10 +291,6 @@ def receive_mail(app_config_info, main_config_info):
                     result_list.append(all_sheet_data)
                     generate_log(main_config_id, "info", f"表格数据生成完毕")
                 work_book = openpyxl.Workbook(result_excel_name)
-                result_dir = os.path.join(config_files_dir, str(main_config_id), "result_excel")
-                if not os.path.exists(result_dir):
-                    os.makedirs(result_dir)
-                result_path = os.path.join(result_dir, result_excel_name)
                 for sheet_name, result in reversed(list(zip(sheet_name_list, result_list))):
                     sheet = work_book.create_sheet(sheet_name, 0)
                     for data in result:
@@ -294,10 +299,6 @@ def receive_mail(app_config_info, main_config_info):
                 work_book.close()
             else:
                 generate_log(main_config_id, "info", f"提供模板表")
-                result_dir = os.path.join(config_files_dir, str(main_config_id), "result_excel")
-                if not os.path.exists(result_dir):
-                    os.makedirs(result_dir)
-                result_path = os.path.join(result_dir, result_excel_name)
                 shutil.copy(template_path, result_path)
                 result_list = []
                 result_excel = openpyxl.load_workbook(result_path, data_only=True)
@@ -385,7 +386,7 @@ def receive_mail(app_config_info, main_config_info):
                         else:
                             sheet = result_excel[sheet_name]
                     header_row = get_header_row(sheet, header_row)
-                    field_data_list = [i.value.strip() for i in sheet[header_row]]
+                    field_data_list = [i.value for i in sheet[header_row]]
                     column_number_list = get_column_number()
                     if isinstance(result, list):
                         for data_index, data in enumerate(result, start=1):

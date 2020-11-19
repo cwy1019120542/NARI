@@ -2,7 +2,7 @@ import os
 import openpyxl
 
 class Report:
-    def __init__(self, filter_workbook, file_dir, file_name, header_row, sheet_name, field_list, result_field_list, merge_field_list, centre_company_dict, code_department_dict, last_file_dir=None, company_index=1, is_save_all=True, prefix=''):
+    def __init__(self, filter_workbook, file_dir, file_name, header_row, sheet_name, field_list, result_field_list, merge_field_list, centre_company_dict, code_department_dict, last_file_dir=None, company_index=1, is_save_all=True, prefix='', manage_dict=None, centre_index=2):
         self.sheet_name = sheet_name
         self.file_dir = file_dir
         self.origin_file_path = os.path.join(file_dir, "origin", file_name)
@@ -18,7 +18,9 @@ class Report:
         self.result_field_list = result_field_list
         self.save_company_list = []
         self.company_index = company_index
+        self.contre_index = centre_index
         self.is_save_all = is_save_all
+        self.manage_dict = manage_dict
 
     @staticmethod
     def generate_key_value(column_value_list, field_list, target_field_list, header_row):
@@ -118,10 +120,18 @@ class Report:
 
     def filter_save(self, data_list, order_field_list):
         sheet = self.filter_workbook.create_sheet(self.filter_sheet_name, -1)
+        order_field_list.append("是否归属本部管理")
         sheet.append(order_field_list)
         if self.save_company_list:
-            for data in data_list:
-                if data[self.company_index] in self.save_company_list:
+            for data in data_list[:]:
+                company = data[self.company_index]
+                contre = data[self.contre_index]
+                if company in self.save_company_list:
+                    is_manage = self.manage_dict.get(contre)
+                    if is_manage == "是":
+                        data.append("是")
+                    else:
+                        data.append("否")
                     sheet.append(data)
 
     def start(self):
